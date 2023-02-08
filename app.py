@@ -7,6 +7,17 @@ import pandas as pd
 
 st.set_page_config(page_title = "RNAseq Analysis Tool", page_icon = ":microscope:", layout="wide")
 
+# CSS to inject contained in a string
+hide_table_row_index = """
+            <style>
+            thead tr th:first-child {display:none}
+            tbody th {display:none}
+            </style>
+            """
+
+# Inject CSS with Markdown
+st.markdown(hide_table_row_index, unsafe_allow_html=True)
+
 st.title("Analysis tool for RNA sequences")
 st.markdown('''##### <span style="color:gray">Discover unique information about RNA sequences with an overall interactive environment and Machine Learning approaches.</span>
             ''', unsafe_allow_html=True)
@@ -18,10 +29,20 @@ with col2:
 
 st.sidebar.markdown('---')
 
-with col2:
-    uploaded_file = st.sidebar.file_uploader("Upload your ZIP file with FASTA files by RNA type", type=["zip"])
+uploaded_file = st.sidebar.file_uploader("Upload your ZIP file with FASTA files by RNA type", type=["zip"])
 
-tab1, tab2, tab3, tab4 = st.tabs(['General Statistics', 'Classification', 'Visualization', 'FAQ'])
+st.sidebar.markdown('---')
+
+st.sidebar.markdown('TODO:')
+
+st.sidebar.markdown('- Histograms exploring nucleotides frequency')
+
+st.sidebar.markdown('- Violinplots for nucleotides frequency')
+
+st.sidebar.markdown('- Hypothesis tests between n-mer averages')
+
+
+tab1, tab2, tab3, tab4 = st.tabs(['General Statistics', 'Classification', 'Feature Visualization', 'FAQ'])
 
 
 if uploaded_file:
@@ -45,23 +66,28 @@ if uploaded_file:
 
         for i in range(len(classes)):
 
-            seq_desc = stats.SeqData('tmp/' + filenames[i]).desc()
+            seq = stats.SeqData('tmp/' + filenames[i])
+
+            seq_desc = seq.desc()
 
             stats_df = pd.DataFrame({"type": classes[i], 
                                 "num_seqs": seq_desc['count'], 
-                                "min_len": seq_desc['min'],
-                                "avg_len": seq_desc['mean'],  
-                                "max_len": seq_desc['max'],
-                                "std_len": seq_desc['std'],
-                                "25%": seq_desc['25%'],
-                                "50%": seq_desc['50%'],
-                                "75%": seq_desc['75%'],}, 
+                                "min_len (bp)": seq_desc['min'],
+                                "avg_len (bp)": seq_desc['mean'],  
+                                "max_len (bp)": seq_desc['max'],
+                                "std_len (bp)": seq_desc['std'],
+                                "Q1 (bp)": seq_desc['25%'],
+                                "Q2 (bp)": seq_desc['50%'],
+                                "Q3 (bp)": seq_desc['75%'],
+                                "gc_content (%)": seq.gc_content()}, 
                                 index = [0])
             
             df = pd.concat([df, stats_df]).reset_index(drop=True)
 
-        st.table(df)
-    
+        st.table(df.style.format({col: "{:.2f}" for col in df.columns if col != 'type'}))
+
+        tab1_tab1, tab1_tab2 = st.tabs(['Distribution', 'Statiscal Significance'])
+
 
 with tab4:
     st.markdown("**1. How my ZIP file has to look like for me to upload it?**")
