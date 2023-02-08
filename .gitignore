@@ -1,5 +1,6 @@
 # Python
 __pycache__
+tests.ipynb
 
 # VS Code
 .vscode/
@@ -8,4 +9,3 @@ __pycache__
 
 lib/
 tmp/
-.streamlit/

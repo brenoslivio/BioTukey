@@ -2,11 +2,13 @@ import streamlit as st
 import zipfile
 import os
 import shutil
+import stats
+import pandas as pd
 
 st.set_page_config(page_title = "RNAseq Analysis Tool", page_icon = ":microscope:", layout="wide")
 
 st.title("Analysis tool for RNA sequences")
-st.markdown('''##### <span style="color:gray">Discover unique information about RNA sequences with Machine Learning approaches.</span>
+st.markdown('''##### <span style="color:gray">Discover unique information about RNA sequences with an overall interactive environment and Machine Learning approaches.</span>
             ''', unsafe_allow_html=True)
                 
 col1, col2, col3 = st.sidebar.columns([1,8,1])
@@ -36,8 +38,29 @@ if uploaded_file:
     classes = [os.path.splitext(f)[0] for f in filenames]
 
     with tab1:
-        st.markdown("You have " + str(len(classes)) + " RNA types: " + ', '.join(classes) + '.')
+        st.markdown("You have " + str(len(classes)) + " RNA types: " + ', '.join(classes) + '. ' \
+                    + 'We have the following summary statistics for the sequences:')
 
+        df = pd.DataFrame()
+
+        for i in range(len(classes)):
+
+            seq_desc = stats.SeqData('tmp/' + filenames[i]).desc()
+
+            stats_df = pd.DataFrame({"type": classes[i], 
+                                "num_seqs": seq_desc['count'], 
+                                "min_len": seq_desc['min'],
+                                "avg_len": seq_desc['mean'],  
+                                "max_len": seq_desc['max'],
+                                "std_len": seq_desc['std'],
+                                "25%": seq_desc['25%'],
+                                "50%": seq_desc['50%'],
+                                "75%": seq_desc['75%'],}, 
+                                index = [0])
+            
+            df = pd.concat([df, stats_df]).reset_index(drop=True)
+
+        st.table(df)
     
 
 with tab4:
