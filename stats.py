@@ -1,7 +1,6 @@
 #from Bio import SeqIO
 import pandas as pd
 
-
 class SeqData:
 
     def __init__(self, fasta):
@@ -37,14 +36,9 @@ class SeqData:
             gc += self.df['seq'][i].count('G') + self.df['seq'][i].count('C')
             total_len += len(self.df['seq'][i])
 
-        pct_total_gc = (gc/total_len)*100
+        pct_gc = (gc/total_len)*100
 
-        return pct_total_gc
-
-
-
-
-
+        return pct_gc
 
 
 

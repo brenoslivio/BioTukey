@@ -4,6 +4,10 @@ import os
 import shutil
 import stats
 import pandas as pd
+import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+import collections
 
 st.set_page_config(page_title = "RNAseq Analysis Tool", page_icon = ":microscope:", layout="wide")
 
@@ -55,22 +59,23 @@ if uploaded_file:
     with zipfile.ZipFile(uploaded_file, 'r') as zip_ref:
         zip_ref.extractall('tmp')
 
-    filenames = [f for f in os.listdir('tmp') if os.path.isfile(os.path.join('tmp', f))]
-    classes = [os.path.splitext(f)[0] for f in filenames]
-
+    files = {os.path.splitext(f)[0] : f for f in os.listdir('tmp') if os.path.isfile(os.path.join('tmp', f))}
+ 
     with tab1:
-        st.markdown("You have " + str(len(classes)) + " RNA types: " + ', '.join(classes) + '. ' \
+        st.markdown("You have " + str(len(files.keys())) + " RNA types: " + ', '.join(files.keys()) + '. ' \
                     + 'We have the following summary statistics for the sequences:')
 
         df = pd.DataFrame()
+        seqs = {}
 
-        for i in range(len(classes)):
+        for type in files.keys():
 
-            seq = stats.SeqData('tmp/' + filenames[i])
+            seq_df = stats.SeqData('tmp/' + files[type])
+            seqs[type] = seq_df
 
-            seq_desc = seq.desc()
+            seq_desc = seq_df.desc()
 
-            stats_df = pd.DataFrame({"type": classes[i], 
+            stats_df = pd.DataFrame({"type": type, 
                                 "num_seqs": seq_desc['count'], 
                                 "min_len (bp)": seq_desc['min'],
                                 "avg_len (bp)": seq_desc['mean'],  
@@ -79,15 +84,55 @@ if uploaded_file:
                                 "Q1 (bp)": seq_desc['25%'],
                                 "Q2 (bp)": seq_desc['50%'],
                                 "Q3 (bp)": seq_desc['75%'],
-                                "gc_content (%)": seq.gc_content()}, 
+                                "gc_content (%)": seq_df.gc_content()}, 
                                 index = [0])
             
             df = pd.concat([df, stats_df]).reset_index(drop=True)
 
         st.table(df.style.format({col: "{:.2f}" for col in df.columns if col != 'type'}))
 
-        tab1_tab1, tab1_tab2 = st.tabs(['Distribution', 'Statiscal Significance'])
+        tab1_tab1, tab1_tab2 = st.tabs(['Distribution', 'Statistical Significance'])
 
+        with tab1_tab1:
+            
+            df_plot = pd.DataFrame()
+
+            for type in seqs.keys():
+                new_df = pd.DataFrame(seqs[type].df['seq'])
+                new_df['type'] = type
+                
+                df_plot = pd.concat([df_plot, new_df]).reset_index(drop=True)
+
+            figures = {}
+
+            for N in ['A', 'G', 'C', 'T']:
+                df_plot[N] = df_plot['seq'].apply(lambda x : x.count(N) / len(x))
+                figures[N] = px.box(df_plot, x='type', y=N, color='type')
+
+            figures_traces = collections.defaultdict(list)
+
+            for N in figures.keys():
+                for trace in range(len(figures[N]["data"])):
+                    figures_traces[N].append(figures[N]["data"][trace])
+
+            fig = make_subplots(rows=2, cols=2,
+                subplot_titles = ['Adenine', 'Guanine', 'Cytosine', 'Thymine'])
+
+            for traces in figures_traces['A']:
+                fig.append_trace(traces, row=1, col=1)
+
+            for traces in figures_traces['G']:
+                fig.append_trace(traces, row=1, col=2)
+            
+            for traces in figures_traces['C']:
+                fig.append_trace(traces, row=2, col=1)
+
+            for traces in figures_traces['T']:
+                fig.append_trace(traces, row=2, col=2)
+
+            fig.update_layout(height=800, width=1000, showlegend=False, title_text="Boxplot for nucleotide ratio by RNA type")
+
+            st.plotly_chart(fig)
 
 with tab4:
     st.markdown("**1. How my ZIP file has to look like for me to upload it?**")
