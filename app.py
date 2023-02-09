@@ -8,6 +8,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import collections
+from scipy.stats import ttest_ind
 
 st.set_page_config(page_title = "RNAseq Analysis Tool", page_icon = ":microscope:", layout="wide")
 
@@ -37,13 +38,6 @@ uploaded_file = st.sidebar.file_uploader("Upload your ZIP file with FASTA files 
 
 st.sidebar.markdown('---')
 
-st.sidebar.markdown('TODO:')
-
-st.sidebar.markdown('- Histograms exploring nucleotides frequency')
-
-st.sidebar.markdown('- Violinplots for nucleotides frequency')
-
-st.sidebar.markdown('- Hypothesis tests between n-mer averages')
 
 
 tab1, tab2, tab3, tab4 = st.tabs(['General Statistics', 'Classification', 'Feature Visualization', 'FAQ'])
@@ -86,15 +80,29 @@ if uploaded_file:
                                 "Q3 (bp)": seq_desc['75%'],
                                 "gc_content (%)": seq_df.gc_content()}, 
                                 index = [0])
-            
+
             df = pd.concat([df, stats_df]).reset_index(drop=True)
 
-        st.table(df.style.format({col: "{:.2f}" for col in df.columns if col != 'type'}))
+        th_props = [
+            ('text-align', 'center'),
+            ('font-weight', 'bold')
+            ]
+        
+        styles = [
+            dict(selector="th", props=th_props)
+        ]
 
-        tab1_tab1, tab1_tab2 = st.tabs(['Distribution', 'Statistical Significance'])
+        df = df.style.format({col: "{:.2f}" for col in df.columns if col != 'type'}).set_table_styles(styles)
 
-        with tab1_tab1:
+        st.table(df)
+
+        st.markdown('---')
             
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown('### Nucleotide distribution insights')
+
             df_plot = pd.DataFrame()
 
             for type in seqs.keys():
@@ -107,7 +115,7 @@ if uploaded_file:
 
             for N in ['A', 'G', 'C', 'T']:
                 df_plot[N] = df_plot['seq'].apply(lambda x : x.count(N) / len(x))
-                figures[N] = px.box(df_plot, x='type', y=N, color='type')
+                figures[N] = px.box(df_plot, x='type', y=N, color='type', color_discrete_sequence=px.colors.cyclical.Twilight)
 
             figures_traces = collections.defaultdict(list)
 
@@ -118,21 +126,34 @@ if uploaded_file:
             fig = make_subplots(rows=2, cols=2,
                 subplot_titles = ['Adenine', 'Guanine', 'Cytosine', 'Thymine'])
 
-            for traces in figures_traces['A']:
-                fig.append_trace(traces, row=1, col=1)
+            for i, N in enumerate(['A', 'G', 'C', 'T']):
+                for traces in figures_traces[N]:
+                    fig.append_trace(traces, row=(i//2) + 1, col=(i%2) + 1)
 
-            for traces in figures_traces['G']:
-                fig.append_trace(traces, row=1, col=2)
-            
-            for traces in figures_traces['C']:
-                fig.append_trace(traces, row=2, col=1)
-
-            for traces in figures_traces['T']:
-                fig.append_trace(traces, row=2, col=2)
-
-            fig.update_layout(height=800, width=1000, showlegend=False, title_text="Boxplot for nucleotide ratio by RNA type")
+            fig.update_layout(height=500, width=800, showlegend=False, title_text="Boxplot for nucleotide proportion by RNA type")
 
             st.plotly_chart(fig)
+
+            st.markdown('###### Hypothesis Testing')
+
+            st.markdown('CHECK GC CONTENT DIFFERENCE')
+
+            st.markdown('LET USER SELECT OPTIONS')
+            
+            group1 = df_plot[df_plot['type'] == 'rRNA']
+            group2 = df_plot[df_plot['type'] == 'tRNA']
+            #print(df_plot.groupby('type')['seq'].apply(lambda x : x.count('A')/len(x)))
+
+            _, p_value = ttest_ind(group1['T'], group2['T'], equal_var=False)
+            
+            print(p_value)
+
+        with col2:
+            st.markdown('### K-mers distribution')
+
+            #https://immunarch.com/articles/web_only/v9_kmers.html
+            st.markdown('TODO: Let user select which k-mer and if we want the average or sum considering all sequences')
+            st.markdown('Color by the type of the sequence')
 
 with tab4:
     st.markdown("**1. How my ZIP file has to look like for me to upload it?**")
