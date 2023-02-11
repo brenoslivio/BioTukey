@@ -32,13 +32,14 @@ class SeqData:
 
         gc = 0
         total_len = 0
+
         for i in range(len(self.df['seq'])):
             gc += self.df['seq'][i].count('G') + self.df['seq'][i].count('C')
             total_len += len(self.df['seq'][i])
 
         pct_gc = (gc/total_len)*100
 
-        return pct_gc
+        return pct_gc, gc, total_len
 
 
 

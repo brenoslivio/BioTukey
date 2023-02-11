@@ -9,6 +9,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import collections
 from scipy.stats import ttest_ind
+import statsmodels.stats.proportion as prop
 
 st.set_page_config(page_title = "RNAseq Analysis Tool", page_icon = ":microscope:", layout="wide")
 
@@ -64,10 +65,10 @@ if uploaded_file:
 
         for type in files.keys():
 
-            seq_df = stats.SeqData('tmp/' + files[type])
-            seqs[type] = seq_df
+            seq = stats.SeqData('tmp/' + files[type])
+            seqs[type] = seq
 
-            seq_desc = seq_df.desc()
+            seq_desc = seq.desc()
 
             stats_df = pd.DataFrame({"type": type, 
                                 "num_seqs": seq_desc['count'], 
@@ -78,7 +79,7 @@ if uploaded_file:
                                 "Q1 (bp)": seq_desc['25%'],
                                 "Q2 (bp)": seq_desc['50%'],
                                 "Q3 (bp)": seq_desc['75%'],
-                                "gc_content (%)": seq_df.gc_content()}, 
+                                "gc_content (%)": seq.gc_content()[0]}, 
                                 index = [0])
 
             df = pd.concat([df, stats_df]).reset_index(drop=True)
@@ -136,17 +137,36 @@ if uploaded_file:
 
             st.markdown('###### Hypothesis Testing')
 
-            st.markdown('CHECK GC CONTENT DIFFERENCE')
+            st.markdown('Compare two sequence types to check for statistical significance in proportions related to GC% Content and nucleotides.')
+
+            st.markdown('Null Hypothesis is:')
+
+            st.markdown('$$H_0: p_1 = p_2$$')
+
+            st.markdown('You can select the following Alternative Hypotheses:')
+
+            st.markdown('$$H_1: p_1 \\neq p_2;\; p_1 > p_2;\; p_1 < p_2$$')
+
+            st.markdown('Select the types of sequences to be compared:')
+
+            type1 = st.selectbox('1st type:', [''] + list(seqs.keys()))
+
+            type2 = st.selectbox('2nd type:', [''] + list(seqs.keys()))
+
+            st.markdown('Select the alternative hypothesis:')
+
+            alternative = st.selectbox('Alternative Hypothesis:', ['two-sided', 'larger', 'smaller'])
+
+            if type1 and type2:
+                count1, nobs1 = seqs[type1].gc_content()[1], seqs[type1].gc_content()[2]
+                count2, nobs2 = seqs[type2].gc_content()[1], seqs[type2].gc_content()[2]
+
+                _, pvalue = prop.test_proportions_2indep(count1, nobs1, count2, nobs2, compare='diff', alternative=alternative)
+            
+                st.markdown(pvalue)
 
             st.markdown('LET USER SELECT OPTIONS')
-            
-            group1 = df_plot[df_plot['type'] == 'rRNA']
-            group2 = df_plot[df_plot['type'] == 'tRNA']
-            #print(df_plot.groupby('type')['seq'].apply(lambda x : x.count('A')/len(x)))
 
-            _, p_value = ttest_ind(group1['T'], group2['T'], equal_var=False)
-            
-            print(p_value)
 
         with col2:
             st.markdown('### K-mers distribution')
