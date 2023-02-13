@@ -148,30 +148,33 @@ def general_stats(files):
     with col2:
         st.markdown('### k-mer distribution for the RNA types')
 
-        k = st.selectbox('Select size of k-mer:', ['', '1', '2', '3', '4'])
+        k = st.selectbox('Select size of k-mer:', ['', '1', '2', '3', '4', '5'])
 
         if k:
-            props_df = pd.DataFrame()
+            avgs_df = pd.DataFrame()
             kmers_df = pd.DataFrame()
             
             for type in seqs:
-                prop_df, kmer_df = seqs[type].kmer_count(int(k))
-                props_df = pd.concat([props_df, prop_df], axis = 1)
+                avg_df, kmer_df = seqs[type].kmer_count(int(k))
+                avgs_df = pd.concat([avgs_df, avg_df], axis = 1)
                 kmers_df = pd.concat([kmers_df, kmer_df]).reset_index(drop=True)
-                    
-            fig = px.bar(props_df, barmode='group', orientation='h', color_discrete_sequence = px.colors.qualitative.Dark2,
+
+            fig = px.bar(avgs_df, barmode='group', orientation='h', color_discrete_sequence = px.colors.qualitative.Dark2,
                             labels={
                                 "index": "k-mer",
-                                "value": "proportion"
+                                "value": "Average proportion"
                             })
 
             fig.update_layout(
-                height=1000,
+                height=1300,
                 width=800,
-                title_text="k-mer general proportion by RNA type",
+                title_text="k-mer average proportion by RNA type",
+                legend_title_text="RNA type"
             )
 
             fig.update_yaxes(autorange="reversed")
+            fig.update_xaxes(showgrid=True)
+
 
             st.plotly_chart(fig)
 

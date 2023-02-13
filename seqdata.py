@@ -1,7 +1,6 @@
 #from Bio import SeqIO
 import pandas as pd
 from itertools import product
-import streamlit as st
 
 class Seq:
     def __init__(self, fasta, type):
@@ -46,20 +45,24 @@ class Seq:
         
         bases = ['A', 'C', 'G', 'T']
         
-        combs = [''.join(comb) for comb in product(bases, repeat= k)]
-        
-        kmer_df = pd.DataFrame(columns=combs)
-        
-        for comb in combs:
-            kmer_df[comb] = self.df['seq'].str.count(comb)
+        def dict_kmer(seq):
+            counts = {''.join(comb): 0 for comb in product(bases, repeat= k)}
 
-        prop_df = pd.DataFrame({self.type: kmer_df.sum()}) / self.seq_total_len()
+            for i in range(len(seq) - k + 1):
+                counts[seq[i:i+k]] += 1
+                
+            return counts
+        
+        kmer_df = pd.DataFrame.from_dict(dict(self.df['seq'].apply(lambda x: dict_kmer(x))), orient='index')
 
-        kmer_df = kmer_df.div(self.df['seq'].str.len(),axis=0)
+        kmer_df = kmer_df.div(self.df['seq'].str.len() - k + 1, axis=0)
+
+        avg_df = kmer_df.mean()
+        avg_df.name = self.type
 
         kmer_df.insert(0, 'nameseq', self.df['name'])
         kmer_df.insert(0, 'type', self.type)
 
-        return prop_df, kmer_df
+        return avg_df, kmer_df
         
         
