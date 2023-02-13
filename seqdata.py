@@ -1,9 +1,12 @@
 #from Bio import SeqIO
 import pandas as pd
+from itertools import product
+import streamlit as st
 
 class Seq:
-    def __init__(self, fasta):
+    def __init__(self, fasta, type):
         self.fasta = fasta
+        self.type = type
 
         with open(fasta) as file:
             lines = file.readlines()
@@ -38,7 +41,25 @@ class Seq:
                     /self.seq_total_len())*100
 
         return pct_gc
+    
+    def kmer_count(self, k: int):
+        
+        bases = ['A', 'C', 'G', 'T']
+        
+        combs = [''.join(comb) for comb in product(bases, repeat= k)]
+        
+        kmer_df = pd.DataFrame(columns=combs)
+        
+        for comb in combs:
+            kmer_df[comb] = self.df['seq'].str.count(comb)
 
+        prop_df = pd.DataFrame({self.type: kmer_df.sum()}) / self.seq_total_len()
 
+        kmer_df = kmer_df.div(self.df['seq'].str.len(),axis=0)
 
+        kmer_df.insert(0, 'nameseq', self.df['name'])
+        kmer_df.insert(0, 'type', self.type)
 
+        return prop_df, kmer_df
+        
+        
