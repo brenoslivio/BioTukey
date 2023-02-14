@@ -7,21 +7,16 @@ import pandas as pd
 import streamlit as st
 import subprocess
 
-def general_stats(files):
-    st.markdown("You have " + str(len(files)) + " RNA types: " + ', '.join(files.keys()) + '. ' \
+def general_stats(seqs):
+    st.markdown("You have " + str(len(seqs)) + " RNA types: " + ', '.join(seqs) + '. ' \
                         + 'We have the following summary statistics for the sequences:')
 
     df = pd.DataFrame()
-    seqs = {}
 
-    for type in files:
+    for type in seqs:
+        seq_desc = seqs[type].desc()
 
-        seq = seqdata.Seq(files[type], type)
-        seqs[type] = seq
-
-        seq_desc = seq.desc()
-
-        stats_df = pd.DataFrame({"type": type, 
+        stats_df = pd.DataFrame({"type": seqs[type].type, 
                             "num_seqs": seq_desc['count'], 
                             "min_len (bp)": seq_desc['min'],
                             "avg_len (bp)": seq_desc['mean'],  
@@ -30,7 +25,7 @@ def general_stats(files):
                             "Q1 (bp)": seq_desc['25%'],
                             "Q2 (bp)": seq_desc['50%'],
                             "Q3 (bp)": seq_desc['75%'],
-                            "gc_content (%)": seq.gc_content()}, 
+                            "gc_content (%)": seqs[type].gc_content()}, 
                             index = [0])
 
         df = pd.concat([df, stats_df]).reset_index(drop=True)

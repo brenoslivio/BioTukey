@@ -3,7 +3,7 @@ import zipfile
 import os
 import shutil
 import pandas as pd
-import stats, faq
+import stats, classification, faq, seqdata
 import subprocess
 
 def process_files(uploaded_file):
@@ -57,9 +57,18 @@ def runUI():
     if uploaded_file:
 
         files = process_files(uploaded_file)
+
+        seqs = {}
+
+        for type in files:
+            seq = seqdata.Seq(files[type], type)
+            seqs[type] = seq
     
         with tab1:
-            stats.general_stats(files)
+            stats.general_stats(seqs)
+
+        with tab2:
+            classification.classify(seqs)
 
     with tab4:
         faq.help()
