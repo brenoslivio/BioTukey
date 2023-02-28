@@ -68,21 +68,28 @@ def classify(seqs):
                 clf = None
 
                 if ml == "Random Forest (RF)":
-                    st.markdown("Select the number of trees in the random forest.")
+                    with st.form("form_rf"):
+                        n_estimators = int(st.text_input('Select the number of trees in the forest:', 100))
+                        criterion = st.selectbox('Select the function to measure the quality of a split:', ["", "gini", "entropy"])
+                        max_features = st.selectbox('Select the number of features to consider when looking for the best split:', ["", "sqrt", "log2", None])
+
+                        clf = RandomForestClassifier(n_estimators = n_estimators, criterion = criterion, max_features = max_features, random_state = 42)
+
+                        submitted_hyperparameters = st.form_submit_button("Submit")
                 elif ml == "Multilayer Perceptron (MLP)":
                     st.markdown("MLP")
                 elif ml == "Support Vector Machines (SVM)":
 
-                    with st.form("form"):
-                        C = st.slider('C', 0.0, 10.0, 10.0, step = 0.01)
+                    with st.form("form_svm"):
+                        C = st.slider('Regularization parameter:', 0.0, 10.0, 10.0, step = 0.01)
                         gamma = st.slider('gamma', 0.0, 10.0, 1.0, step = 0.01)
-                        kernel = st.selectbox('Select a range of values', ["", "linear", "poly", "rbf", "sigmoid"])
+                        kernel = st.selectbox('Select the kernel type to be used in the algorithm', ["", "rbf", "poly", "sigmoid"])
 
                         clf = SVC(C = C, gamma = gamma, kernel = kernel, random_state = 42)
 
                         submitted_hyperparameters = st.form_submit_button("Submit")
 
-                if submitted_hyperparameters and clf:
+                if submitted_hyperparameters and clf != None:
 
                     steps = [('scaler', StandardScaler()), ('model', clf)]
 
