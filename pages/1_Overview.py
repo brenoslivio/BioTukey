@@ -68,23 +68,35 @@ def runUI():
 
     seqs = {}
 
-    col1, col2 = st.columns([1, 4])
+    col1, col2 = st.columns([2, 6])
 
     with col1:
-        seq_type = st.selectbox("Select sequence type", ['', "DNA/RNA", "Protein"], help = "RNA sequences are treated as DNA with reverse transcription")
-        uploaded_files = st.file_uploader("Select your FASTA files by sequence class", accept_multiple_files=True, type=["fasta", "fa"], help=".fasta, .fa files only")
+        seq_type = st.selectbox("Select sequence type", ['', "DNA/RNA", "Protein"], 
+                                help = "DNA sequences are considered as coding strands.")
+        uploaded_files = st.file_uploader("Select your FASTA files by sequence class", 
+                                        accept_multiple_files=True, type=["fasta", "fa"], 
+                                        help="Each file must be named according to its class. FASTA, FA files only.")
 
-        study = ""
         study_example = st.selectbox("Or select study example", ['', "ncRNAs"])
 
-        if uploaded_files:
-            files = process_files(uploaded_files)
-        if study_example:
-            study = study_example.split(':')[0]
-            files = load_study(study)
+        option = st.radio("Select option to load", ["Manual", "Example"], horizontal=True)
 
-    if uploaded_files or study_example:
+        match option:
+            case "Manual":
+                if not seq_type or not uploaded_files:
+                    st.warning("Please select type and files.")
+                else:
+                    st.success("Files submitted with success.")
+                    files = process_files(uploaded_files)
+            case "Example":
+                if not study_example:
+                    st.warning("Please select study example.")
+                else:
+                    st.success("Example submitted with success.")
+                    study = study_example.split(':')[0]
+                    files = load_study(study)
 
+    if (option == "Manual" and seq_type and uploaded_files) or (option == "Example" and study_example):
         for type in files:
             seq = seqdata.Seq(files[type], type)
             seqs[type] = seq
@@ -120,15 +132,17 @@ def runUI():
         df = df.style.format({col: "{:.2f}" for col in df.columns if col != 'class'}).set_table_styles(styles)
 
         with col2:
-            match study:
-                case "ncRNAs":
-                    st.info("**Dataset from the following paper:**\n \
-                            Robson P Bonidia, Anderson P Avila Santos, Breno L S de Almeida, \
-                            Peter F Stadler, Ulisses N da Rocha, Danilo S Sanches, \
-                            André C P L F de Carvalho, BioAutoML: automated feature engineering \
-                            and metalearning to predict noncoding RNAs in bacteria, \
-                            Briefings in Bioinformatics, Volume 23, Issue 4, July 2022, \
-                            bbac218, https://doi.org/10.1093/bib/bbac218")
+            if option == "Example":
+                match study:
+                    case "ncRNAs":
+                        seq_type = "DNA/RNA"
+                        st.info("**Dataset from the following paper:**\n \
+                                Robson P Bonidia, Anderson P Avila Santos, Breno L S de Almeida, \
+                                Peter F Stadler, Ulisses N da Rocha, Danilo S Sanches, \
+                                André C P L F de Carvalho, BioAutoML: automated feature engineering \
+                                and metalearning to predict noncoding RNAs in bacteria, \
+                                Briefings in Bioinformatics, Volume 23, Issue 4, July 2022, \
+                                bbac218, https://doi.org/10.1093/bib/bbac218")
                     
             st.markdown("You have " + str(len(seqs)) + " " + seq_type + " class(es): " + ', '.join(seqs) + '. ' \
                         + 'We have the following summary statistics for the sequences:')
@@ -148,7 +162,7 @@ def runUI():
 
             st.table(df)
 
-        tab1, tab2, tab3, tab4 = st.tabs(['k-mer distribution', 'Nucleotide distribution', 'Feature Visualization', 'FAQ'])
+        tab1, tab2 = st.tabs(['k-mer distribution', 'Nucleotide distribution'])
 
         with tab1:
             st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
