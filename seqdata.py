@@ -61,7 +61,7 @@ class Seq:
         avg_df.name = self.type
 
         kmer_df.insert(0, 'nameseq', self.df['name'])
-        kmer_df.insert(0, 'type', self.type)
+        kmer_df.insert(0, 'class', self.type)
 
         return avg_df, kmer_df
         
