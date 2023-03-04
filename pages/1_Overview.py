@@ -13,7 +13,15 @@ import py3Dmol
 import sys
 import urllib.request
 from pypdb import *
-from stmol import showmol,render_pdb_resn
+from stmol import showmol, render_pdb_resn
+from Bio.Align import MultipleSeqAlignment
+from Bio import AlignIO
+from Bio.Align.Applications import MuscleCommandline
+import numpy as np
+import matplotlib.pyplot as plt
+import numpy as np
+from pyfamsa import Aligner, Sequence
+from pymsaviz import MsaViz, get_msa_testdata
 
 def show_protein():
     q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
@@ -45,21 +53,23 @@ def process_files(uploaded_files):
 
     files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
 
-    for type in files:
-        subprocess.run(['python', 'MathFeature/preprocessing/preprocessing.py', '-i', files[type], '-o', dir_path + 'pre_' + type + '.fasta'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-        files[type] = dir_path + 'pre_' + type + '.fasta'
+    for seq_class in files:
+        subprocess.run(['python', 'MathFeature/preprocessing/preprocessing.py', '-i', files[seq_class], '-o', dir_path + 'pre_' + seq_class + '.fasta'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        files[seq_class] = dir_path + 'pre_' + seq_class + '.fasta'
 
     return files
 
 def load_study(study):
     files = {}
+    seq_type = ''
 
     match study:
         case "ncRNAs":
             dir_path = "examples/example2/train/"
             files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
+            seq_type = "DNA/RNA"
 
-    return files
+    return files, seq_type
 
 def runUI():
     st.set_page_config(page_title = "BioTukey", page_icon = "imgs/biotukey_icon.png", layout="wide")
@@ -72,10 +82,10 @@ def runUI():
 
     with col1:
         seq_type = st.selectbox("Select sequence type", ['', "DNA/RNA", "Protein"], 
-                                help = "DNA sequences are considered as coding strands.")
+                                help = "RNA sequences are back transcribed, being analyzed in the same way as DNA.")
         uploaded_files = st.file_uploader("Select your FASTA files by sequence class", 
-                                        accept_multiple_files=True, type=["fasta", "fa"], 
-                                        help="Each file must be named according to its class. FASTA, FA files only.")
+                                        accept_multiple_files=True, type=["fasta", "fa", "faa"], 
+                                        help="Each file must be named according to its class (e.g., sRNA.fasta). FASTA, FA, FAA files only.")
 
         study_example = st.selectbox("Or select study example", ['', "ncRNAs"])
 
@@ -94,19 +104,20 @@ def runUI():
                 else:
                     st.success("Example submitted with success.")
                     study = study_example.split(':')[0]
-                    files = load_study(study)
+                    files, seq_type = load_study(study)
 
     if (option == "Manual" and seq_type and uploaded_files) or (option == "Example" and study_example):
-        for type in files:
-            seq = seqdata.Seq(files[type], type)
-            seqs[type] = seq
+
+        for seq_class in files:
+            seq = seqdata.Seq(files[seq_class], seq_class, seq_type)
+            seqs[seq_class] = seq
 
         df = pd.DataFrame()
 
-        for type in seqs:
-            seq_desc = seqs[type].desc()
+        for seq_class in seqs:
+            seq_desc = seqs[seq_class].desc()
 
-            stats_df = pd.DataFrame({"class": seqs[type].type, 
+            stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class, 
                                 "num_seqs": seq_desc['count'], 
                                 "min_len (bp)": seq_desc['min'],  
                                 "max_len (bp)": seq_desc['max'],
@@ -115,7 +126,7 @@ def runUI():
                                 "Q1 (bp)": seq_desc['25%'],
                                 "Q2 (bp)": seq_desc['50%'],
                                 "Q3 (bp)": seq_desc['75%'],
-                                "gc_content (%)": seqs[type].gc_content()}, 
+                                "gc_content (%)": seqs[seq_class].gc_content()}, 
                                 index = [0])
 
             df = pd.concat([df, stats_df]).reset_index(drop=True)
@@ -135,7 +146,6 @@ def runUI():
             if option == "Example":
                 match study:
                     case "ncRNAs":
-                        seq_type = "DNA/RNA"
                         st.info("**Dataset from the following paper:**\n \
                                 Robson P Bonidia, Anderson P Avila Santos, Breno L S de Almeida, \
                                 Peter F Stadler, Ulisses N da Rocha, Danilo S Sanches, \
@@ -146,7 +156,9 @@ def runUI():
                     
             st.markdown("You have " + str(len(seqs)) + " " + seq_type + " class(es): " + ', '.join(seqs) + '. ' \
                         + 'We have the following summary statistics for the sequences:')
-            st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+                    <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                     <span class="tooltiptext">
                     <strong>num_seqs</strong>: Number of sequences;<br>
                     <strong>min_len</strong>: Minimum length of sequences;<br>
@@ -156,29 +168,47 @@ def runUI():
                     <strong>Q1</strong>: 25th percentile for length of sequences;<br>
                     <strong>Q2</strong>: 50th percentile for length of sequences;<br>
                     <strong>Q3</strong>: 75th percentile for length of sequences;<br>
-                    <strong>gc_content</strong>: GC% content considering all sequences;</span>
+                    <strong>gc_content</strong>: Average GC% content considering all sequences;</span>
                     </div></div> 
             """, unsafe_allow_html=True)
 
             st.table(df)
 
-        tab1, tab2 = st.tabs(['k-mer distribution', 'Nucleotide distribution'])
+        tab1, tab2, tab3 = st.tabs(['Sequences information', 'k-mer distribution', 'Nucleotide distribution'])
 
         with tab1:
+            #a = st.selectbox("Select sequence class", seqs['sRNA'].df)
+        
+            sequences = [Sequence(name.encode(), 
+                        seqs['sRNA'].df.loc[seqs['sRNA'].df['name'] == name]['seq'].item().encode()) 
+                        for name in seqs['sRNA'].df['name'].sample(10)]
+
+            aligner = Aligner(guide_tree="upgma")
+            msa = aligner.align(sequences)
+ 
+            with open("align.fasta", "w") as f:
+                for sequence in msa:
+                    f.write(">" + sequence.id.decode() + "\n" + sequence.sequence.decode() + "\n")
+
+            #msa_file = get_msa_testdata("align.fasta")
+            # mv = MsaViz("align.fasta", wrap_length=60, show_count=True)
+            # mv.savefig("api_example01.png")
+
+        with tab2:
             st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
 
             k = st.selectbox('Select size of k-mer:', ['1', '2', '3', '4', '5'])
 
-            tab1_1, tab1_2 = st.tabs(['Average proportion', 'Individual proportion'])
+            tab2_1, tab2_2 = st.tabs(['Average proportion', 'Individual proportion'])
 
             if k:
-                with tab1_1:
+                with tab2_1:
                     with st.spinner('Loading...'):
                         avgs_df = pd.DataFrame()
                         kmers_df = pd.DataFrame()
                         
-                        for type in seqs:
-                            avg_df, kmer_df = seqs[type].kmer_count(int(k))
+                        for seq_class in seqs:
+                            avg_df, kmer_df = seqs[seq_class].kmer_count(int(k))
                             avgs_df = pd.concat([avgs_df, avg_df], axis = 1)
                             kmers_df = pd.concat([kmers_df, kmer_df]).reset_index(drop=True)
 
@@ -192,25 +222,26 @@ def runUI():
                             height=500,
                             width=900,
                             title_text= f"k-mer average proportion by {seq_type} class",
-                            legend_title_text= f"{seq_type} class"
+                            legend_title_text= f"{seq_type} class",
+                            legend = {"orientation":'h'}
                         )
 
                         st.plotly_chart(fig, use_container_width=True)
-                with tab1_2:
+                with tab2_2:
                     st.markdown('######\n **k-mer individual proportion for sequences**')
                     kmers_df = kmers_df.set_index("class")
 
                     st.dataframe(kmers_df, use_container_width=True)
 
-        with tab2:
+        with tab3:
             st.markdown('### Nucleotide distribution insights')
 
             with st.spinner('Loading...'):
                 df_plot = pd.DataFrame()
 
-                for type in seqs:
-                    new_df = pd.DataFrame(seqs[type].df['seq'])
-                    new_df['class'] = type
+                for seq_class in seqs:
+                    new_df = pd.DataFrame(seqs[seq_class].df['seq'])
+                    new_df['class'] = seq_class
                     
                     df_plot = pd.concat([df_plot, new_df]).reset_index(drop=True)
 
