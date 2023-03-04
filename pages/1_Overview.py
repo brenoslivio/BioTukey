@@ -190,10 +190,6 @@ def runUI():
                 for sequence in msa:
                     f.write(">" + sequence.id.decode() + "\n" + sequence.sequence.decode() + "\n")
 
-            #msa_file = get_msa_testdata("align.fasta")
-            # mv = MsaViz("align.fasta", wrap_length=60, show_count=True)
-            # mv.savefig("api_example01.png")
-
         with tab2:
             st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
 
