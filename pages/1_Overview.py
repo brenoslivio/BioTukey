@@ -21,7 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 from pyfamsa import Aligner, Sequence
-from pymsaviz import MsaViz, get_msa_testdata
+import plotly.graph_objects as go
 
 def show_protein():
     q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
@@ -181,14 +181,37 @@ def runUI():
         
             sequences = [Sequence(name.encode(), 
                         seqs['sRNA'].df.loc[seqs['sRNA'].df['name'] == name]['seq'].item().encode()) 
-                        for name in seqs['sRNA'].df['name'].sample(10)]
+                        for name in seqs['sRNA'].df['name'].sample(5)]
 
             aligner = Aligner(guide_tree="upgma")
             msa = aligner.align(sequences)
  
-            with open("align.fasta", "w") as f:
-                for sequence in msa:
-                    f.write(">" + sequence.id.decode() + "\n" + sequence.sequence.decode() + "\n")
+            # with open("align.fasta", "w") as f:
+            #     for sequence in msa:
+            #         f.write(">" + sequence.id.decode() + "\n" + sequence.sequence.decode() + "\n")
+            msa_seqs = [sequence.sequence.decode() for sequence in msa]
+            
+            nucleotide_color = {"A": 0, "G": 0.25, "T": 0.5, "C": 0.75, "-": 1}
+
+            msa_seqs = [[*msa_seq] for msa_seq in msa_seqs]
+
+            seqs_num = [[nucleotide_color[N] for N in msa_seq] for msa_seq in msa_seqs]
+
+            colorscale= [[0, 'tomato'], [0.25, 'palegoldenrod'], [0.5, 'lightgreen'], [0.75, 'cadetblue'], [1, 'whitesmoke']]
+
+            fig = make_subplots(rows=2, cols=1, vertical_spacing=0.065, shared_xaxes=True, row_heights=[0.3, 0.7])
+
+            fig.add_trace(go.Scatter(x = list(range(len(msa_seqs[0]))), y = list(range(len(msa_seqs[0])))), 1, 1)
+
+            fig_hm = px.imshow(seqs_num)
+            fig_hm.update_traces(colorscale = colorscale, text=msa_seqs, texttemplate="%{text}")
+            fig.add_trace(fig_hm['data'][0], 2, 1)
+
+            #config = {'responsive': False}
+            fig.update_coloraxes(showscale=False)
+            fig.update_layout(height=1000, colorscale_sequential = colorscale, dragmode='pan', xaxis2=dict(rangeslider=dict(visible=True), range = (-0.5, 10), type="linear",))
+        
+            st.plotly_chart(fig, use_container_width=True)
 
         with tab2:
             st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
