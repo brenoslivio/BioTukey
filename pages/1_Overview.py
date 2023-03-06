@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyfamsa import Aligner, Sequence
 import plotly.graph_objects as go
+from weblogo import *
 
 def show_protein():
     q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
@@ -174,14 +175,23 @@ def runUI():
 
             st.table(df)
 
-        tab1, tab2, tab3 = st.tabs(['Sequences information', 'k-mer distribution', 'Nucleotide distribution'])
+        tab1, tab2, tab3 = st.tabs(['Sequence alignment', 'k-mer distribution', 'Nucleotide distribution'])
 
         with tab1:
-            #a = st.selectbox("Select sequence class", seqs['sRNA'].df)
-        
+
+            tab1_col1, tab1_col2 = st.columns(2)
+
+            with tab1_col1:
+                seq_class = st.selectbox("Select sequence class", seqs)
+                lseq = len(seqs[seq_class].df)
+                max_seq = 50 if lseq >= 50 else lseq
+
+            with tab1_col2:
+                n_sample = st.slider('Number of sequences', 1, max_seq, 1)
+
             sequences = [Sequence(name.encode(), 
-                        seqs['sRNA'].df.loc[seqs['sRNA'].df['name'] == name]['seq'].item().encode()) 
-                        for name in seqs['sRNA'].df['name'].sample(5)]
+                        seqs[seq_class].df.loc[seqs[seq_class].df['name'] == name]['seq'].item().encode()) 
+                        for name in seqs[seq_class].df['name'].sample(n_sample)]
 
             aligner = Aligner(guide_tree="upgma")
             msa = aligner.align(sequences)
@@ -189,27 +199,66 @@ def runUI():
             # with open("align.fasta", "w") as f:
             #     for sequence in msa:
             #         f.write(">" + sequence.id.decode() + "\n" + sequence.sequence.decode() + "\n")
-            msa_seqs = [sequence.sequence.decode() for sequence in msa]
+
+            msa_dict = {sequence.id.decode():sequence.sequence.decode() for sequence in msa}
             
             nucleotide_color = {"A": 0, "G": 0.25, "T": 0.5, "C": 0.75, "-": 1}
 
-            msa_seqs = [[*msa_seq] for msa_seq in msa_seqs]
+            msa_seqs = [[*msa_dict[id]] for id in msa_dict]
 
             seqs_num = [[nucleotide_color[N] for N in msa_seq] for msa_seq in msa_seqs]
 
-            colorscale= [[0, 'tomato'], [0.25, 'palegoldenrod'], [0.5, 'lightgreen'], [0.75, 'cadetblue'], [1, 'whitesmoke']]
+            colorscale= [[0, 'rgb(217,95,2)'], [0.25, 'rgb(230,171,2)'], [0.5, 'rgb(27,158,119)'], [0.75, 'rgb(117,112,179)'], [1, 'white']]
+            fig = make_subplots(rows=2, shared_xaxes=True, vertical_spacing=0.065, row_heights=[0.2, 0.8])
 
-            fig = make_subplots(rows=2, cols=1, vertical_spacing=0.065, shared_xaxes=True, row_heights=[0.3, 0.7])
+            df = pd.DataFrame({'Date': [0, 1, 2],
+                   'Client 1': [10, 15, 3],
+                   'Client 2': [12, 7, 14],
+                   'Client 3': [18, 2, 7]})
 
-            fig.add_trace(go.Scatter(x = list(range(len(msa_seqs[0]))), y = list(range(len(msa_seqs[0])))), 1, 1)
+            colors = {'Client 1': 'red',
+                    'Client 2': 'blue',
+                    'Client 3': 'green'}
 
-            fig_hm = px.imshow(seqs_num)
-            fig_hm.update_traces(colorscale = colorscale, text=msa_seqs, texttemplate="%{text}")
-            fig.add_trace(fig_hm['data'][0], 2, 1)
+            data = []
 
-            #config = {'responsive': False}
-            fig.update_coloraxes(showscale=False)
-            fig.update_layout(height=1000, colorscale_sequential = colorscale, dragmode='pan', xaxis2=dict(rangeslider=dict(visible=True), range = (-0.5, 10), type="linear",))
+            for i in range(df.shape[0]):
+
+                ordered_columns = df.columns[1:][np.argsort(df.iloc[i, 1:].values)]
+
+                for column in ordered_columns:
+
+                    data.append(go.Bar(x=[df['Date'][i]],
+                                    y=[df[column][i]],
+                                    marker=dict(color=colors[column]),
+                                    name=column,
+                                    legendgroup=column,
+                                    showlegend=i == 0)) 
+
+            fig_hm = px.imshow(seqs_num, aspect = 'auto')
+            fig_hm.update_traces(text=msa_seqs,
+                                #colorscale=colorscale,
+                              hovertemplate = "<b>Sequence name:</b> %{y}" +
+                                            "<br> <b>Character:</b> %{text}" +
+                                            "<br> <b>Position:</b> %{x} <extra></extra>",
+                              
+                              textfont=dict(
+                                    family="Trebuchet MS",
+                                    size = 6,
+                                ), texttemplate="<b>%{text}</b>")
+            
+            for bar in data:
+                fig.add_trace(bar, row=1, col=1)
+
+            fig.add_trace(fig_hm['data'][0], row = 2, col = 1)
+
+            fig.update_coloraxes(colorscale = colorscale, cmin = 0, cmax = 1, showscale=False)
+            fig.update_layout(height = 1000, barmode = 'stack', dragmode='pan',
+                            yaxis2= dict(tickmode = 'array',
+                            tickvals = list(range(n_sample)),
+                            ticktext = list(msa_dict.keys())),
+                            xaxis2=dict(
+                            rangeslider=dict(visible=True), range = (-0.5, 50), type="linear",))
         
             st.plotly_chart(fig, use_container_width=True)
 
