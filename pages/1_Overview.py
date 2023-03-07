@@ -178,107 +178,109 @@ def runUI():
         tab1, tab2, tab3 = st.tabs(['Sequence alignment', 'k-mer distribution', 'Nucleotide distribution'])
 
         with tab1:
-
-            tab1_col1, tab1_col2 = st.columns(2)
-
             df_sequences = pd.DataFrame()
 
             for seq_class in seqs:
                 df_seq = seqs[seq_class].df.copy()
-                df_seq['list_name'] = seq_class + ': ' + df_seq['name']
+                df_seq['list_name'] = seq_class + ' - ' + df_seq['name']
                 df_sequences = pd.concat([df_sequences, df_seq]).reset_index(drop=True)
 
             seq_select = st.multiselect("Select sequences", df_sequences['list_name'], default =df_sequences['list_name'][0])
 
             if seq_select:
-                nseqs_selected = len(seq_select)
+                with st.spinner('Loading...'):
+                    nseqs_selected = len(seq_select)
 
-                df_select = df_sequences[df_sequences['list_name'].isin(seq_select)]
+                    df_select = df_sequences[df_sequences['list_name'].isin(seq_select)]
 
-                sequences = [Sequence(name.encode(), 
-                            df_select.loc[df_select['list_name'] == name]['seq'].item().encode()) 
-                            for name in df_select['list_name']]
+                    sequences = [Sequence(name.encode(), 
+                                df_select.loc[df_select['list_name'] == name]['seq'].item().encode()) 
+                                for name in df_select['list_name']]
 
-                aligner = Aligner(guide_tree="upgma")
-                msa = aligner.align(sequences)
-                
-                msa_dict = {sequence.id.decode():sequence.sequence.decode() for sequence in msa}
-                
-                nucleotide_color = {"A": 0, "G": 0.25, "T": 0.5, "C": 0.75, "-": 1}
+                    aligner = Aligner(guide_tree="upgma")
+                    msa = aligner.align(sequences)
+                    
+                    msa_dict = {sequence.id.decode():sequence.sequence.decode() for sequence in msa}
+                    
+                    nucleotide_color = {"A": 0, "G": 0.25, "T": 0.5, "C": 0.75, "-": 1}
 
-                msa_seqs = [[*msa_dict[id]] for id in msa_dict]
+                    msa_seqs = [[*msa_dict[id]] for id in msa_dict]
 
-                seqs_num = [[nucleotide_color[N] for N in msa_seq] for msa_seq in msa_seqs]
+                    seqs_num = [[nucleotide_color[N] for N in msa_seq] for msa_seq in msa_seqs]
 
-                colorscale= [[0, 'rgb(217,95,2)'], [0.25, 'rgb(230,171,2)'], [0.5, 'rgb(27,158,119)'], [0.75, 'rgb(117,112,179)'], [1, 'white']]
-                fig = make_subplots(rows=2, shared_xaxes=True, vertical_spacing=0.065, row_heights=[0.2, 0.8])
+                    colorscale= [[0, 'rgb(217,95,2)'], [0.25, 'rgb(230,171,2)'], [0.5, 'rgb(27,158,119)'], [0.75, 'rgb(117,112,179)'], [1, 'white']]
+                    fig = make_subplots(rows=2, shared_xaxes=True, vertical_spacing=0.065, row_heights=[0.2, 0.8])
 
-                np_seqs = np.array(msa_seqs)
+                    np_seqs = np.array(msa_seqs)
 
-                len_seqs = len(np_seqs[0])
+                    len_seqs = len(np_seqs[0])
 
-                df = pd.DataFrame({'Position': list(range(len_seqs)),
-                    'A': [list(np_seqs[:,i]).count('A') for i in range(len_seqs)],
-                    'G': [list(np_seqs[:,i]).count('G') for i in range(len_seqs)],
-                    'T': [list(np_seqs[:,i]).count('T') for i in range(len_seqs)],
-                    'C': [list(np_seqs[:,i]).count('C') for i in range(len_seqs)]})
+                    df = pd.DataFrame({'Position': list(range(len_seqs)),
+                        'A': [list(np_seqs[:,i]).count('A') for i in range(len_seqs)],
+                        'G': [list(np_seqs[:,i]).count('G') for i in range(len_seqs)],
+                        'T': [list(np_seqs[:,i]).count('T') for i in range(len_seqs)],
+                        'C': [list(np_seqs[:,i]).count('C') for i in range(len_seqs)]})
 
-                colors = {'A': 'rgb(217,95,2)',
-                        'G': 'rgb(230,171,2)',
-                        'T': 'rgb(27,158,119)',
-                        'C': 'rgb(117,112,179)'}
+                    colors = {'A': 'rgb(217,95,2)',
+                            'G': 'rgb(230,171,2)',
+                            'T': 'rgb(27,158,119)',
+                            'C': 'rgb(117,112,179)'}
 
-                data = []
+                    data = []
 
-                for i in range(df.shape[0]):
+                    for i in range(df.shape[0]):
+                        ordered_columns = df.columns[1:][np.argsort(df.iloc[i, 1:].values)]
 
-                    ordered_columns = df.columns[1:][np.argsort(df.iloc[i, 1:].values)]
-                    text_col = ""
-                    for col_index, column in enumerate(ordered_columns):
-                        if (col_index == len(ordered_columns) - 1):
-                            for col in ordered_columns:
-                                if df[col][i] == df[column][i]:
-                                   text_col += "<br>" + col 
+                        text_col = []
+                        for col_index, column in enumerate(ordered_columns):
+                            if col_index == 3:
+                                for col in ordered_columns:
+                                    if df[col][i] == df[column][i]:
+                                        text_col.append(col)
+                            
+                            data.append(go.Bar(x=[df['Position'][i]],
+                                            y=[df[column][i]],
+                                            text = "<br>".join(text_col),
+                                            textfont=dict(
+                                                family="Trebuchet MS",
+                                                size = 10,
+                                            ),
+                                            cliponaxis = False,
+                                            marker=dict(color=colors[column]),
+                                            name = column,
+                                            textposition="outside",
+                                            legendgroup=column,
+                                            showlegend=i == 0,
+                                            hovertemplate = "<b>Character: </b>" + column + " "
+                                                    "<br><b>Frequency:</b> %{y}" +
+                                                    "<br><b>Position:</b> %{x} <extra></extra>")) 
 
-                        bar = go.Bar(x=[df['Position'][i]],
-                                        y=[df[column][i]],
-                                        text = text_col,
-                                        cliponaxis = False,
-                                        marker=dict(color=colors[column]),
-                                        name = column,
-                                        textposition="outside",
-                                        legendgroup=column,
-                                        showlegend=i == 0,
-                                        hovertemplate = "<b>Character: </b>" + column + " "
-                                                "<br><b>Frequency:</b> %{y}" +
-                                                "<br><b>Position:</b> %{x} <extra></extra>")
-                        data.append(bar) 
+                    fig_hm = px.imshow(seqs_num, aspect = 'auto')
+                    fig_hm.update_traces(text=msa_seqs,
+                                    hovertemplate = "<b>Sequence name:</b> %{y}" +
+                                                    "<br> <b>Character:</b> %{text}" +
+                                                    "<br> <b>Position:</b> %{x} <extra></extra>",
+                                    
+                                    textfont=dict(
+                                            family="Trebuchet MS",
+                                            size = 6,
+                                        ), texttemplate="<b>%{text}</b>")
+                    
+                    for bar in data:
+                        fig.add_trace(bar, row=1, col=1)
 
-                fig_hm = px.imshow(seqs_num, aspect = 'auto')
-                fig_hm.update_traces(text=msa_seqs,
-                                hovertemplate = "<b>Sequence name:</b> %{y}" +
-                                                "<br> <b>Character:</b> %{text}" +
-                                                "<br> <b>Position:</b> %{x} <extra></extra>",
-                                
-                                textfont=dict(
-                                        family="Trebuchet MS",
-                                        size = 6,
-                                    ), texttemplate="<b>%{text}</b>")
-                
-                for bar in data:
-                    fig.add_trace(bar, row=1, col=1)
+                    fig.add_trace(fig_hm['data'][0], row = 2, col = 1)
 
-                fig.add_trace(fig_hm['data'][0], row = 2, col = 1)
+                    fig.update_coloraxes(colorscale = colorscale, cmin = 0, cmax = 1, showscale=False)
+                    fig.update_layout(height = 1000, barmode = 'stack', dragmode='pan',
+                                    legend_title_text='Characters',
+                                    yaxis2 = dict(tickmode = 'array',
+                                        tickvals = list(range(nseqs_selected)),
+                                        ticktext = list(msa_dict.keys())),
+                                    xaxis2=dict(
+                                    rangeslider=dict(visible=True), range = (-0.5, 50), type="linear",))
 
-                fig.update_coloraxes(colorscale = colorscale, cmin = 0, cmax = 1, showscale=False)
-                fig.update_layout(height = 1000, barmode = 'stack', dragmode='pan',
-                                yaxis2= dict(tickmode = 'array',
-                                tickvals = list(range(nseqs_selected)),
-                                ticktext = list(msa_dict.keys())),
-                                xaxis2=dict(
-                                rangeslider=dict(visible=True), range = (-0.5, 50), type="linear",))
-            
-                st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True)
 
         with tab2:
             st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
