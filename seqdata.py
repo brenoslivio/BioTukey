@@ -27,17 +27,25 @@ class Seq:
     
     def desc(self):
         return self.df['seq'].apply(lambda x: len(x)).describe()
+    
+    def avg_gc_content(self):
+        pct_gc = (sum([gc_fraction(seq) for seq in self.df['seq']]) / len(self.df)) * 100
 
+        return pct_gc
+
+    def seq_total_len(self):
+        return sum(self.df['seq'].str.len())
+    
+    def gc_content(self):
+        gc = [gc_fraction(seq) * 100 for seq in self.df['seq']]
+
+        return gc
+    
     # def nucleotide_count(self, N):
     #     return sum(self.df['seq'].str.count(N))
 
-    # def seq_total_len(self):
-    #     return sum(self.df['seq'].str.len())
 
-    def gc_content(self):
-        pct_gc = (sum([gc_fraction(seq) for seq in self.df['seq']]) / len(self.df))*100
 
-        return pct_gc
     
     def kmer_count(self, k: int):
         
