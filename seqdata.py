@@ -32,20 +32,31 @@ class Seq:
         pct_gc = (sum([gc_fraction(seq) for seq in self.df['seq']]) / len(self.df)) * 100
 
         return pct_gc
+    
+    def calc_N50(self):
+        seq_lens = sorted([len(seq) for seq in self.df['seq']])
+        half_length = sum(seq_lens) / 2
+
+        cum_length = 0
+
+        for seq_len in seq_lens:
+            cum_length += seq_len
+            if cum_length >= half_length:
+                return seq_len
+
 
     def seq_total_len(self):
         return sum(self.df['seq'].str.len())
     
+    def seq_len(self):
+        seq_lens = [len(seq) for seq in self.df['seq']]
+
+        return seq_lens
+
     def gc_content(self):
         gc = [gc_fraction(seq) * 100 for seq in self.df['seq']]
 
         return gc
-    
-    # def nucleotide_count(self, N):
-    #     return sum(self.df['seq'].str.count(N))
-
-
-
     
     def kmer_count(self, k: int):
         

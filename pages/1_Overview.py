@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyfamsa import Aligner, Sequence
 import plotly.graph_objects as go
+from Bio import SeqIO
+import re
 
 def show_protein():
     q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
@@ -46,18 +48,50 @@ def process_files(uploaded_files):
 
     for file in uploaded_files:
         save_path = os.path.join(dir_path, file.name)
-        with open(save_path, mode='wb') as w:
-            w.write(file.getvalue())
+        with open(save_path, mode='wb') as f:
+            f.write(file.getvalue())
 
     dir_path += '/'
 
     files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
 
-    for seq_class in files:
-        subprocess.run(['python', 'MathFeature/preprocessing/preprocessing.py', '-i', files[seq_class], '-o', dir_path + 'pre_' + seq_class + '.fasta'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-        files[seq_class] = dir_path + 'pre_' + seq_class + '.fasta'
+    seq_type = None
 
-    return files
+    alphabets = {'nt': re.compile('^[acgtu]*$', re.I), 
+                'aa': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I)}
+
+    for seq_class in files:
+
+        pre_file = dir_path + 'pre_' + seq_class + '.fasta'
+
+        with open(pre_file, mode='a') as f:
+            for record in SeqIO.parse(files[seq_class], 'fasta'):
+
+                if alphabets['nt'].search(str(record.seq)) is not None:
+                    if seq_type == 'Protein':
+                        st.error("Error: Dataset contains both DNA/RNA and Protein sequences.")
+                        break
+                    else:
+                        if seq_type is None:
+                            seq_type = 'DNA/RNA'
+                        
+                        f.write(f">{record.id}\n")
+                        f.write(f"{record.seq}\n")
+                elif alphabets['aa'].search(str(record.seq)) is not None:
+                    if seq_type == 'DNA/RNA':
+                        st.error("Error: Dataset contains both DNA/RNA and Protein sequences.")
+                        break
+                    else:
+                        if seq_type is None:
+                            seq_type = 'Protein'
+                        
+                        f.write(f">{record.id}\n")
+                        f.write(f"{record.seq}\n")
+
+        files[seq_class] = pre_file
+            
+        #subprocess.run(['python', 'MathFeature/preprocessing/preprocessing.py', '-i', files[seq_class], '-o', dir_path + 'pre_' + seq_class + '.fasta'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    return files, seq_type
 
 def load_study(study):
     files = {}
@@ -262,9 +296,10 @@ def summary_stats(seqs):
                             "Q1 (nt)": seq_desc['25%'],
                             "Q2 (nt)": seq_desc['50%'],
                             "Q3 (nt)": seq_desc['75%'],
+                            "N50 (nt)": seqs[seq_class].calc_N50(),
                             "gc_content (%)": seqs[seq_class].avg_gc_content()}, 
                             index = [0])
-
+        
         df = pd.concat([df, stats_df]).reset_index(drop=True)
 
     th_props = [
@@ -288,7 +323,8 @@ def seq_stats(seqs):
         stats_df = seqs[seq_class].gc_content()
 
         stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class,
-                            "nameseq": seqs[seq_class].df["name"],    
+                            "nameseq": seqs[seq_class].df["name"],
+                            "length (nt)": seqs[seq_class].seq_len(),     
                             "gc_content (%)": seqs[seq_class].gc_content()})
 
         df = pd.concat([df, stats_df]).reset_index(drop=True)
@@ -319,8 +355,8 @@ def runUI():
     col1, col2 = st.columns([2, 6])
 
     with col1:
-        seq_type = st.selectbox("Select sequence type", ['', "DNA/RNA", "Protein"], 
-                                help = "RNA sequences are back transcribed, being analyzed in the same way as DNA.")
+        #seq_type = st.selectbox("Select sequence type", ['', "DNA/RNA", "Protein"], 
+        #                        help = "RNA sequences are back transcribed, being analyzed in the same way as DNA.")
         uploaded_files = st.file_uploader("Select your FASTA files by sequence class", 
                                         accept_multiple_files=True, type=["fasta", "fa", "faa"], 
                                         help="Each file must be named according to its class (e.g., sRNA.fasta). FASTA, FA, FAA files only.")
@@ -331,20 +367,19 @@ def runUI():
 
         match option:
             case "Manual":
-                if not seq_type or not uploaded_files:
-                    st.warning("Please select type and files.")
+                if not uploaded_files:
+                    st.warning("Please select files.")
                 else:
                     st.success("Files submitted with success.")
-                    files = process_files(uploaded_files)
+                    files, seq_type = process_files(uploaded_files)
             case "Example":
                 if not study_example:
                     st.warning("Please select study example.")
                 else:
                     st.success("Example submitted with success.")
-                    study = study_example.split(':')[0]
-                    files, seq_type = load_study(study)
+                    files, seq_type = load_study(study_example)
     
-    if (option == "Manual" and seq_type and uploaded_files) or (option == "Example" and study_example):
+    if (option == "Manual" and uploaded_files) or (option == "Example" and study_example):
 
         for seq_class in files:
             seq = seqdata.Seq(files[seq_class], seq_class, seq_type)
@@ -354,9 +389,9 @@ def runUI():
 
         with col2:
             if option == "Example":
-                match study:
+                match study_example:
                     case "ncRNAs":
-                        st.info("**Dataset from the following paper:**\n \
+                        st.info("**Dataset from the following published paper:**\n \
                                 Robson P Bonidia, Anderson P Avila Santos, Breno L S de Almeida, \
                                 Peter F Stadler, Ulisses N da Rocha, Danilo S Sanches, \
                                 André C P L F de Carvalho, BioAutoML: automated feature engineering \
@@ -375,9 +410,13 @@ def runUI():
                     <strong>max_len</strong>: Maximum length of sequences;<br>
                     <strong>avg_len</strong>: Average length of sequences;<br>
                     <strong>std_len</strong>: Standard deviation for length of sequences;<br>
+                    <strong>sum_len</strong>: Sum of length of all sequences;<br>
                     <strong>Q1</strong>: 25th percentile for length of sequences;<br>
                     <strong>Q2</strong>: 50th percentile for length of sequences;<br>
                     <strong>Q3</strong>: 75th percentile for length of sequences;<br>
+                    <strong>N50</strong>: Length of the shortest read in the group of 
+                    longest sequences that together represent (at least) 50% of the 
+                    nucleotides in the set of sequences;<br>
                     <strong>gc_content</strong>: Average GC% content considering all sequences;</span>
                     </div></div> 
             """, unsafe_allow_html=True)
@@ -387,8 +426,6 @@ def runUI():
         tab1, tab2, tab3, tab4 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', 'Nucleotide distribution'])
 
         with tab1:
-            st.markdown('### Sequence statistics')
-
             df = seq_stats(seqs)
 
             st.dataframe(df, use_container_width=True)
