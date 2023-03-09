@@ -4,26 +4,17 @@ from plotly.subplots import make_subplots
 import plotly.express as px
 import collections
 import pandas as pd
-import seqdata, css_injection
-import os
-import shutil
-import subprocess
 from stmol import showmol,render_pdb
 import py3Dmol
-import sys
-import urllib.request
 from pypdb import *
 from stmol import showmol, render_pdb_resn
-from Bio.Align import MultipleSeqAlignment
-from Bio import AlignIO
-from Bio.Align.Applications import MuscleCommandline
 import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 from pyfamsa import Aligner, Sequence
 import plotly.graph_objects as go
 from Bio import SeqIO
-import re
+import utils
 
 def show_protein():
     q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
@@ -37,73 +28,6 @@ def show_protein():
     
     showmol(render_pdb_resn(viewer = xyzview, resn_lst = ['']), height = 500,width=800)# = ['ALA',]))
 
-def process_files(uploaded_files):
-    home_dir = os.path.expanduser('~')
-    dir_path = os.path.join(home_dir, '.biotukey')
-
-    if os.path.exists(dir_path):
-        shutil.rmtree(dir_path)
-
-    os.makedirs(dir_path)
-
-    for file in uploaded_files:
-        save_path = os.path.join(dir_path, file.name)
-        with open(save_path, mode='wb') as f:
-            f.write(file.getvalue())
-
-    dir_path += '/'
-
-    files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
-
-    seq_type = None
-
-    alphabets = {'nt': re.compile('^[acgtu]*$', re.I), 
-                'aa': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I)}
-
-    for seq_class in files:
-
-        pre_file = dir_path + 'pre_' + seq_class + '.fasta'
-
-        with open(pre_file, mode='a') as f:
-            for record in SeqIO.parse(files[seq_class], 'fasta'):
-
-                if alphabets['nt'].search(str(record.seq)) is not None:
-                    if seq_type == 'Protein':
-                        st.error("Error: Dataset contains both DNA/RNA and Protein sequences.")
-                        break
-                    else:
-                        if seq_type is None:
-                            seq_type = 'DNA/RNA'
-                        
-                        f.write(f">{record.id}\n")
-                        f.write(f"{record.seq}\n")
-                elif alphabets['aa'].search(str(record.seq)) is not None:
-                    if seq_type == 'DNA/RNA':
-                        st.error("Error: Dataset contains both DNA/RNA and Protein sequences.")
-                        break
-                    else:
-                        if seq_type is None:
-                            seq_type = 'Protein'
-                        
-                        f.write(f">{record.id}\n")
-                        f.write(f"{record.seq}\n")
-
-        files[seq_class] = pre_file
-            
-        #subprocess.run(['python', 'MathFeature/preprocessing/preprocessing.py', '-i', files[seq_class], '-o', dir_path + 'pre_' + seq_class + '.fasta'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-    return files, seq_type
-
-def load_study(study):
-    files = {}
-    seq_type = ''
-
-    match study:
-        case "ncRNAs":
-            dir_path = "examples/example2/train/"
-            files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
-            seq_type = "DNA/RNA"
-
-    return files, seq_type
 
 def seq_alignment(seqs):
     df_sequences = pd.DataFrame()
@@ -345,156 +269,112 @@ def seq_stats(seqs):
 
     return df
 
-def runUI():
-    st.set_page_config(page_title = "BioTukey", page_icon = "imgs/biotukey_icon.png", layout="wide")
-
-    css_injection.inject_css()
-
-    seqs = {}
-
-    col1, col2 = st.columns([2, 6])
-
-    with col1:
-        #seq_type = st.selectbox("Select sequence type", ['', "DNA/RNA", "Protein"], 
-        #                        help = "RNA sequences are back transcribed, being analyzed in the same way as DNA.")
-        uploaded_files = st.file_uploader("Select your FASTA files by sequence class", 
-                                        accept_multiple_files=True, type=["fasta", "fa", "faa"], 
-                                        help="Each file must be named according to its class (e.g., sRNA.fasta). FASTA, FA, FAA files only.")
-
-        study_example = st.selectbox("Or select study example", ['', "ncRNAs"])
-
-        option = st.radio("Select option to load", ["Manual", "Example"], horizontal=True)
-
-        match option:
-            case "Manual":
-                if not uploaded_files:
-                    st.warning("Please select files.")
-                else:
-                    st.success("Files submitted with success.")
-                    files, seq_type = process_files(uploaded_files)
-            case "Example":
-                if not study_example:
-                    st.warning("Please select study example.")
-                else:
-                    st.success("Example submitted with success.")
-                    files, seq_type = load_study(study_example)
+def load(files, seq_type):
     
-    if (option == "Manual" and uploaded_files) or (option == "Example" and study_example):
+    seqs = {}
+    
+    for seq_class in files:
+        seq = utils.Seq(files[seq_class], seq_class, seq_type)
+        seqs[seq_class] = seq
 
-        for seq_class in files:
-            seq = seqdata.Seq(files[seq_class], seq_class, seq_type)
-            seqs[seq_class] = seq
+    df = summary_stats(seqs)
 
-        df = summary_stats(seqs)
+    st.markdown("Dataset provided has " + str(len(seqs)) + " " + seq_type + " class(es): " + ', '.join(seqs) + '. ' \
+                + 'Summary statistics for the sequences by class:')
+    st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+            <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <span class="tooltiptext">
+            <strong>num_seqs</strong>: Number of sequences;<br>
+            <strong>min_len</strong>: Minimum length of sequences;<br>
+            <strong>max_len</strong>: Maximum length of sequences;<br>
+            <strong>avg_len</strong>: Average length of sequences;<br>
+            <strong>std_len</strong>: Standard deviation for length of sequences;<br>
+            <strong>sum_len</strong>: Sum of length of all sequences;<br>
+            <strong>Q1</strong>: 25th percentile for length of sequences;<br>
+            <strong>Q2</strong>: 50th percentile for length of sequences;<br>
+            <strong>Q3</strong>: 75th percentile for length of sequences;<br>
+            <strong>N50</strong>: Length of the shortest read in the group of 
+            longest sequences that together represent (at least) 50% of the 
+            nucleotides in the set of sequences;<br>
+            <strong>gc_content</strong>: Average GC% content considering all sequences;</span>
+            </div></div> 
+    """, unsafe_allow_html=True)
 
-        with col2:
-            if option == "Example":
-                match study_example:
-                    case "ncRNAs":
-                        st.info("**Dataset from the following published paper:**\n \
-                                Robson P Bonidia, Anderson P Avila Santos, Breno L S de Almeida, \
-                                Peter F Stadler, Ulisses N da Rocha, Danilo S Sanches, \
-                                André C P L F de Carvalho, BioAutoML: automated feature engineering \
-                                and metalearning to predict noncoding RNAs in bacteria, \
-                                Briefings in Bioinformatics, Volume 23, Issue 4, July 2022, \
-                                bbac218, https://doi.org/10.1093/bib/bbac218")
-                    
-            st.markdown("Dataset provided has " + str(len(seqs)) + " " + seq_type + " class(es): " + ', '.join(seqs) + '. ' \
-                        + 'Summary statistics for the sequences by class:')
-            st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
-                    <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    <span class="tooltiptext">
-                    <strong>num_seqs</strong>: Number of sequences;<br>
-                    <strong>min_len</strong>: Minimum length of sequences;<br>
-                    <strong>max_len</strong>: Maximum length of sequences;<br>
-                    <strong>avg_len</strong>: Average length of sequences;<br>
-                    <strong>std_len</strong>: Standard deviation for length of sequences;<br>
-                    <strong>sum_len</strong>: Sum of length of all sequences;<br>
-                    <strong>Q1</strong>: 25th percentile for length of sequences;<br>
-                    <strong>Q2</strong>: 50th percentile for length of sequences;<br>
-                    <strong>Q3</strong>: 75th percentile for length of sequences;<br>
-                    <strong>N50</strong>: Length of the shortest read in the group of 
-                    longest sequences that together represent (at least) 50% of the 
-                    nucleotides in the set of sequences;<br>
-                    <strong>gc_content</strong>: Average GC% content considering all sequences;</span>
-                    </div></div> 
-            """, unsafe_allow_html=True)
+    st.table(df)
 
-            st.table(df)
+    tab1, tab2, tab3, tab4 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', 'Nucleotide distribution'])
 
-        tab1, tab2, tab3, tab4 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', 'Nucleotide distribution'])
+    with tab1:
+        df = seq_stats(seqs)
 
-        with tab1:
-            df = seq_stats(seqs)
+        st.dataframe(df, use_container_width=True)
 
-            st.dataframe(df, use_container_width=True)
+    with tab2:
+        seq_alignment(seqs)
 
-        with tab2:
-            seq_alignment(seqs)
+    with tab3:
+        st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
 
-        with tab3:
-            st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
+        k = st.selectbox('Select size of k-mer:', ['1', '2', '3', '4', '5'])
 
-            k = st.selectbox('Select size of k-mer:', ['1', '2', '3', '4', '5'])
+        tab3_1, tab3_2 = st.tabs(['Average proportion', 'Individual proportion'])
 
-            tab3_1, tab3_2 = st.tabs(['Average proportion', 'Individual proportion'])
+        if k:
+            with tab3_1:
+                kmers_df = kmer_general_stats(k, seqs, seq_type)
+            with tab3_2:
+                kmer_individual_stats(kmers_df)
 
-            if k:
-                with tab3_1:
-                    kmers_df = kmer_general_stats(k, seqs, seq_type)
-                with tab3_2:
-                    kmer_individual_stats(kmers_df)
+    with tab4:
+        nt_distribution(seqs, seq_type)
 
-        with tab4:
-            nt_distribution(seqs, seq_type)
-
-        # st.markdown('---')
+    # st.markdown('---')
 
 
-        # st.markdown('###### Hypothesis Testing')
+    # st.markdown('###### Hypothesis Testing')
 
-        # st.markdown('Compare two sequence types to check for statistical significance in proportions related to GC% content.')
+    # st.markdown('Compare two sequence types to check for statistical significance in proportions related to GC% content.')
 
-        # st.markdown('Null Hypothesis is:')
+    # st.markdown('Null Hypothesis is:')
 
-        # st.markdown('$$H_0: p_1 = p_2$$')
+    # st.markdown('$$H_0: p_1 = p_2$$')
 
-        # st.markdown('You can select the following Alternative Hypotheses:')
+    # st.markdown('You can select the following Alternative Hypotheses:')
 
-        # st.markdown('$$H_1: p_1 \\neq p_2; p_1 > p_2; p_1 < p_2$$')
+    # st.markdown('$$H_1: p_1 \\neq p_2; p_1 > p_2; p_1 < p_2$$')
 
-        # with st.form("hypo_test"):
-        #     st.markdown('Select the sequences types to be compared for GC% content:')
+    # with st.form("hypo_test"):
+    #     st.markdown('Select the sequences types to be compared for GC% content:')
 
-        #     type1 = st.selectbox('1st type ($p_1$):', [''] + list(seqs.keys()))
+    #     type1 = st.selectbox('1st type ($p_1$):', [''] + list(seqs.keys()))
 
-        #     type2 = st.selectbox('2nd type ($p_2$):', [''] + list(seqs.keys()))
+    #     type2 = st.selectbox('2nd type ($p_2$):', [''] + list(seqs.keys()))
 
-        #     alternative = st.selectbox('Alternative Hypothesis:', ['two-sided', 'larger', 'smaller'])
+    #     alternative = st.selectbox('Alternative Hypothesis:', ['two-sided', 'larger', 'smaller'])
 
-        #     alpha = float(st.text_input('Significance level $\\alpha$:', 0.05))
+    #     alpha = float(st.text_input('Significance level $\\alpha$:', 0.05))
 
-        #     submitted = st.form_submit_button("Submit")
-            
-        #     st.markdown('---')
+    #     submitted = st.form_submit_button("Submit")
+        
+    #     st.markdown('---')
 
-        #     if submitted and type1 and type2:    
-        #         count1 = seqs[type1].nucleotide_count('G') + seqs[type1].nucleotide_count('C')
-        #         nobs1 = seqs[type1].seq_total_len()
-        #         count2 = seqs[type2].nucleotide_count('G') + seqs[type2].nucleotide_count('C')
-        #         nobs2 = seqs[type2].seq_total_len()
+    #     if submitted and type1 and type2:    
+    #         count1 = seqs[type1].nucleotide_count('G') + seqs[type1].nucleotide_count('C')
+    #         nobs1 = seqs[type1].seq_total_len()
+    #         count2 = seqs[type2].nucleotide_count('G') + seqs[type2].nucleotide_count('C')
+    #         nobs2 = seqs[type2].seq_total_len()
 
-        #         _, pvalue = prop.test_proportions_2indep(count1, nobs1, count2, nobs2, compare='diff', alternative=alternative)
+    #         _, pvalue = prop.test_proportions_2indep(count1, nobs1, count2, nobs2, compare='diff', alternative=alternative)
 
-        #         st.markdown('$p_1 = $ {:.4f}, $p_2 = $ {:.4f}'.format(seqs[type1].gc_content()/100, seqs[type2].gc_content()/100))
+    #         st.markdown('$p_1 = $ {:.4f}, $p_2 = $ {:.4f}'.format(seqs[type1].gc_content()/100, seqs[type2].gc_content()/100))
 
-        #         st.markdown('***p*-value**: {:.4f}'.format(pvalue))
+    #         st.markdown('***p*-value**: {:.4f}'.format(pvalue))
 
-        #         if pvalue > alpha:
-        #             st.markdown('Since *p*-value $> \\alpha$, we fail to reject the null hypothesis. At a {}% level of significance, there is not sufficient evidence to conclude the assumption of the alternative hypothesis.'.format(alpha*100))
-        #         else:
-        #             st.markdown('Since *p*-value $< \\alpha$, we reject the null hypothesis. At a {}% level of significance, the data support the assumption of the alternative hypothesis.'.format(alpha*100))
+    #         if pvalue > alpha:
+    #             st.markdown('Since *p*-value $> \\alpha$, we fail to reject the null hypothesis. At a {}% level of significance, there is not sufficient evidence to conclude the assumption of the alternative hypothesis.'.format(alpha*100))
+    #         else:
+    #             st.markdown('Since *p*-value $< \\alpha$, we reject the null hypothesis. At a {}% level of significance, the data support the assumption of the alternative hypothesis.'.format(alpha*100))
 
 if __name__ == '__main__':
     runUI()

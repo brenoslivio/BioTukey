@@ -1,7 +1,6 @@
 from Bio import SeqIO
 import pandas as pd
 from itertools import product
-from Bio.Seq import Seq
 from Bio.SeqUtils import gc_fraction
 import re
 
