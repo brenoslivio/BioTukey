@@ -13,10 +13,10 @@ def inject_css():
         st.markdown(f'''<style>
                     [data-testid="stSidebar"] {{
                     background-image: url("data:image/png;base64,{get_base64('imgs/biotukey_logo.png')}");
-                    padding-top: 140px;
+                    padding-top: 110px;
                     background-repeat: no-repeat;
                     background-position: 50% 1%;
                     margin-top: 0%;
-                    background-size: 80%;
+                    background-size: 70%;
                     }}
                     {f.read()}</style>''', unsafe_allow_html=True)

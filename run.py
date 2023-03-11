@@ -1,7 +1,5 @@
 import streamlit as st
-import utils.css_injection as css_injection
 import pandas as pd
-from PIL import Image
 import utils, setup
 
 def runUI():
@@ -11,6 +9,10 @@ def runUI():
     
     st.sidebar.markdown("---")
 
+    page = st.sidebar.radio("Select page:", ["Home", "Overview", "Feature Engineering", "Classification"])
+
+    st.sidebar.markdown("---")
+
     uploaded_files = st.sidebar.file_uploader("Select your FASTA files by sequence class", 
                                                 accept_multiple_files=True, type=["fasta", "fa", "faa"], 
                                                 help="Each file must be named according to its class (e.g., sRNA.fasta). FASTA, FA, FAA files only.")
@@ -18,7 +20,18 @@ def runUI():
     study_example = st.sidebar.selectbox("Or select study example", ['', "ncRNAs"])
 
     option = st.sidebar.radio("Select option to load", ["Manual", "Example"], horizontal=True)
-                
+
+    if page == "Home":
+        st.title("BioTukey")
+        st.markdown('''##### <span style="color:gray">Comprehensive toolkit for interactive data analysis, engineering, and classification of biological sequences.</span>
+                    ''', unsafe_allow_html=True)
+    elif page == "Overview" and not (uploaded_files or study_example):
+        st.warning("Select files or study example for Overview.")
+    elif page == "Feature Engineering" and not (uploaded_files or study_example):
+        st.warning("Select files or study example for Feature Engineering.")
+    elif page == "Classification" and not (uploaded_files or study_example):
+        st.warning("Select files or study example for Classification.")
+
     match option:
             case "Manual":
                 if not uploaded_files:
@@ -33,21 +46,12 @@ def runUI():
                     st.sidebar.success("Example submitted with success.")
                     files, seq_type = utils.processing.load_study(study_example)
 
-
-    st.sidebar.markdown("---")
-
     if (option == "Manual" and uploaded_files) or (option == "Example" and study_example):
 
-        page = st.sidebar.radio("Select page:", ["Home", "Overview", "Feature Engineering", "Classification"])
-
-        if page == "Home":
-            st.title("BioTukey")
-            st.markdown('''##### <span style="color:gray">Comprehensive toolkit for interactive data analysis, engineering, and classification of biological sequences.</span>
-                        ''', unsafe_allow_html=True)
-        elif page == "Overview":
+        if page == "Overview":
             match study_example:
                 case "ncRNAs":
-                    st.info("**Dataset from the following published paper:**\n \
+                    st.info("**Dataset from the following published paper:** \
                             Robson P Bonidia, Anderson P Avila Santos, Breno L S de Almeida, \
                             Peter F Stadler, Ulisses N da Rocha, Danilo S Sanches, \
                             André C P L F de Carvalho, BioAutoML: automated feature engineering \
