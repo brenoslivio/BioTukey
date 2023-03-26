@@ -25,35 +25,36 @@ def process_files(uploaded_files):
     seq_type = None
 
     alphabets = {'nt': re.compile('^[acgtu]*$', re.I), 
-                'aa': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I)}
+                'aa': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I),
+                'aa_exclusive': re.compile('[defhiklmpqrsvwy]', re.I)} # aa exclusive characters
 
     for seq_class in files:
 
-        pre_file = dir_path + 'pre_' + seq_class + '.fasta'
+        pre_file = dir_path + 'processed_' + seq_class + '.fasta'
 
         with open(pre_file, mode='a') as f:
+            protein = False
             for record in SeqIO.parse(files[seq_class], 'fasta'):
 
-                if alphabets['nt'].search(str(record.seq)) is not None:
-                    if seq_type == 'Protein':
-                        st.error("Error: Dataset contains both DNA/RNA and Protein sequences.")
-                        return [], ""
-                    else:
-                        if seq_type is None:
-                            seq_type = 'DNA/RNA'
-                        
+                if alphabets['aa_exclusive'].search(str(record.seq)) is not None:
+                    protein = True
+                    break
+            
+            for record in SeqIO.parse(files[seq_class], 'fasta'):
+
+                if protein:
+                    if alphabets['aa'].search(str(record.seq)) is not None:
                         f.write(f">{record.id}\n")
                         f.write(f"{record.seq}\n")
-                elif alphabets['aa'].search(str(record.seq)) is not None:
-                    if seq_type == 'DNA/RNA':
-                        st.error("Error: Dataset contains both DNA/RNA and Protein sequences.")
-                        return [], ""
-                    else:
-                        if seq_type is None:
-                            seq_type = 'Protein'
-                        
+                else: 
+                    if alphabets['nt'].search(str(record.seq)) is not None:
                         f.write(f">{record.id}\n")
                         f.write(f"{record.seq}\n")
+
+            if protein:
+                seq_type = 'Protein'
+            else:
+                seq_type = 'DNA/RNA'
 
         files[seq_class] = pre_file
             
@@ -65,7 +66,7 @@ def load_study(study):
 
     match study:
         case "ncRNAs":
-            dir_path = "examples/example2/train/"
+            dir_path = "examples/example1/train/"
             files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
             seq_type = "DNA/RNA"
 

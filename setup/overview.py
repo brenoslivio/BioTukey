@@ -1,32 +1,32 @@
 import streamlit as st
-import statsmodels.stats.proportion as prop
+#import statsmodels.stats.proportion as prop
 from plotly.subplots import make_subplots
 import plotly.express as px
 import collections
 import pandas as pd
-from stmol import showmol,render_pdb
-import py3Dmol
-from pypdb import *
-from stmol import showmol, render_pdb_resn
+# from stmol import showmol,render_pdb
+# import py3Dmol
+# from pypdb import *
+# from stmol import showmol, render_pdb_resn
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 from pyfamsa import Aligner, Sequence
 import plotly.graph_objects as go
 from Bio import SeqIO
 import utils
 
-def show_protein():
-    q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
-    query_type="sequence", 
-    return_type="polymer_entity")
+# def show_protein():
+#     q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
+#     query_type="sequence", 
+#     return_type="polymer_entity")
 
-    id_pdb = q.search()["result_set"][0]["identifier"].split('_')[0]
+#     id_pdb = q.search()["result_set"][0]["identifier"].split('_')[0]
 
-    xyzview = py3Dmol.view(query=f'pdb:{id_pdb}')
-    xyzview.setStyle({'cartoon':{'color':'spectrum'}})
+#     xyzview = py3Dmol.view(query=f'pdb:{id_pdb}')
+#     xyzview.setStyle({'cartoon':{'color':'spectrum'}})
     
-    showmol(render_pdb_resn(viewer = xyzview, resn_lst = ['']), height = 500,width=800)# = ['ALA',]))
+#     showmol(render_pdb_resn(viewer = xyzview, resn_lst = ['']), height = 500,width=800)# = ['ALA',]))
 
 
 def seq_alignment(seqs):
