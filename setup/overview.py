@@ -244,11 +244,16 @@ def seq_stats(seqs):
 
     for seq_class in seqs:
         
-        stats_df = seqs[seq_class].gc_content()
-
+        num_orfs, min_len_orf, max_len_orf, avg_len_orf, std_len_orf  = seqs[seq_class].orf_stats()
+    
         stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class,
                             "nameseq": seqs[seq_class].df["name"],
-                            "length (nt)": seqs[seq_class].seq_len(),     
+                            "length (nt)": seqs[seq_class].seq_len(),
+                            "num_orfs": num_orfs,
+                            "min_len_orf (nt)": min_len_orf, 
+                            "max_len_orf (nt)": max_len_orf,
+                            "avg_len_orf (nt)": avg_len_orf,
+                            "std_len_orf (nt)": std_len_orf,
                             "gc_content (%)": seqs[seq_class].gc_content()})
 
         df = pd.concat([df, stats_df]).reset_index(drop=True)

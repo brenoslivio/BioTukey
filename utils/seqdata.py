@@ -2,6 +2,8 @@ from Bio import SeqIO
 import pandas as pd
 from itertools import product
 from Bio.SeqUtils import gc_fraction
+import Bio.Seq
+import numpy as np
 import re
 
 class Seq:
@@ -43,7 +45,6 @@ class Seq:
             if cum_length >= half_length:
                 return seq_len
 
-
     def seq_total_len(self):
         return sum(self.df['seq'].str.len())
     
@@ -56,6 +57,37 @@ class Seq:
         gc = [gc_fraction(seq) * 100 for seq in self.df['seq']]
 
         return gc
+    
+    def orf_stats(self):
+        table = 1
+
+        num_orfs, min_len_orf, max_len_orf, avg_len_orf, std_len_orf  = [], [], [], [], []
+
+        for seq in self.df['seq']:
+            orfs_seq = 0
+            orfs_len = []
+            for strand, nuc in [(+1, Bio.Seq.Seq(seq)), (-1, Bio.Seq.Seq(seq).reverse_complement())]:
+                for frame in range(3):
+                    length = 3 * ((len(seq)-frame) // 3) #Multiple of three
+                    for pro in nuc[frame:frame+length].translate(table).split("*"):
+                        if len(pro) >= 30:
+                            orfs_seq += 1
+                            orfs_len.append(len(pro) * 3)
+
+            num_orfs.append(orfs_seq)
+
+            if len(orfs_len) > 0:
+                min_len_orf.append(min(orfs_len))
+                max_len_orf.append(max(orfs_len))
+                avg_len_orf.append(np.mean(orfs_len))
+                std_len_orf.append(np.std(orfs_len))
+            else:
+                min_len_orf.append(0)
+                max_len_orf.append(0)
+                avg_len_orf.append(0)
+                std_len_orf.append(0)
+                
+        return num_orfs, min_len_orf, max_len_orf, avg_len_orf, std_len_orf
     
     def kmer_count(self, k: int):
         
