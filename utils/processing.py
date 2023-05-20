@@ -2,16 +2,12 @@ import streamlit as st
 import os
 import re
 from Bio import SeqIO
-import shutil
+
 
 def process_files(uploaded_files):
+
     home_dir = os.path.expanduser('~')
     dir_path = os.path.join(home_dir, '.biotukey')
-
-    if os.path.exists(dir_path):
-        shutil.rmtree(dir_path)
-
-    os.makedirs(dir_path)
 
     for file in uploaded_files:
         save_path = os.path.join(dir_path, file.name)

@@ -4,13 +4,15 @@ from plotly.subplots import make_subplots
 import plotly.express as px
 import collections
 import pandas as pd
+import RNA
+import os
 # from stmol import showmol,render_pdb
 # import py3Dmol
 # from pypdb import *
 # from stmol import showmol, render_pdb_resn
 import numpy as np
-#import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.pyplot as plt
+import base64
 from pyfamsa import Aligner, Sequence
 import plotly.graph_objects as go
 from Bio import SeqIO
@@ -30,6 +32,14 @@ import utils
 
 
 def seq_alignment(seqs):
+    st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+            <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <span class="tooltiptext">
+            Multiple Sequence Alignment (MSA) using FAMSA algorithm.</span>
+            </div></div> 
+    """, unsafe_allow_html=True)
+
     df_sequences = pd.DataFrame()
 
     for seq_class in seqs:
@@ -83,16 +93,10 @@ def seq_alignment(seqs):
             for i in range(df.shape[0]):
                 ordered_columns = df.columns[1:][np.argsort(df.iloc[i, 1:].values)]
 
-                text_col = []
-                for col_index, column in enumerate(ordered_columns):
-                    if col_index == 3:
-                        for col in ordered_columns:
-                            if df[col][i] == df[column][i]:
-                                text_col.append(col)
+                for _, column in enumerate(ordered_columns):
                     
                     data.append(go.Bar(x=[df['Position'][i]],
                                     y=[df[column][i]],
-                                    text = "<br>".join(text_col),
                                     textfont=dict(
                                         family="Trebuchet MS",
                                         size = 10,
@@ -170,7 +174,8 @@ def kmer_individual_stats(kmers_df):
     st.dataframe(kmers_df, use_container_width=True)
 
 def nt_distribution(seqs, seq_type):
-    st.markdown('### Nucleotide distribution insights')
+
+    plot = st.selectbox("Select distribution plot:", ['Boxplot', 'Violin plot'])
 
     with st.spinner('Loading...'):
         df_plot = pd.DataFrame()
@@ -185,7 +190,10 @@ def nt_distribution(seqs, seq_type):
 
         for N in ['A', 'C', 'G', 'T']:
             df_plot[N] = df_plot['seq'].apply(lambda x : x.count(N) / len(x))
-            figures[N] = px.violin(df_plot, x='class', y=N, color='class', color_discrete_sequence=px.colors.qualitative.Dark2)
+            if plot == 'Boxplot':
+                figures[N] = px.box(df_plot, x='class', y=N, color='class', color_discrete_sequence=px.colors.qualitative.Dark2)
+            else:
+                figures[N] = px.violin(df_plot, x='class', y=N, color='class', color_discrete_sequence=px.colors.qualitative.Dark2)
 
         figures_traces = collections.defaultdict(list)
 
@@ -200,7 +208,7 @@ def nt_distribution(seqs, seq_type):
             for traces in figures_traces[N]:
                 fig.add_trace(traces, row=(i//2) + 1, col=(i%2) + 1)
 
-        fig.update_layout(height=575, width=575, showlegend=False, title_text=f"Violin plots for nucleotide proportion in sequences by {seq_type} class")
+        fig.update_layout(height=575, width=575, showlegend=False, title_text=f"{plot}s for nucleotide proportion in sequences by {seq_type} class")
 
         st.plotly_chart(fig, use_container_width=True)
 
@@ -240,6 +248,21 @@ def summary_stats(seqs):
     return df
 
 def seq_stats(seqs):
+    st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+            <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <span class="tooltiptext">
+            <strong>nameseq</strong>: Sequence's name;<br>
+            <strong>length</strong>: Sequence's length;<br>
+            <strong>num_orfs</strong>: Number of Open Reading Frames (ORFs) in the sequence;<br>
+            <strong>min_len_orf</strong>: Minimum length of ORFs' lengths;<br>
+            <strong>max_len_orf</strong>: Maximum length of ORFs' lengths;<br>
+            <strong>avg_len_orf</strong>: Average length of ORFs' lengths;<br>
+            <strong>std_len_orf</strong>: Standard deviation of length of ORFs' lengths;<br>
+            <strong>gc_content</strong>: Sequence's GC% content;</span>
+            </div></div> 
+    """, unsafe_allow_html=True)
+
     df = pd.DataFrame()
 
     for seq_class in seqs:
@@ -274,8 +297,44 @@ def seq_stats(seqs):
 
     return df
 
-def load(files, seq_type):
+def structure_visualization(seqs, seq_type):
     
+    df_sequences = pd.DataFrame()
+
+    for seq_class in seqs:
+        df_seq = seqs[seq_class].df.copy()
+        df_seq['list_name'] = seq_class + ' - ' + df_seq['name']
+        df_sequences = pd.concat([df_sequences, df_seq]).reset_index(drop=True)
+
+    st.markdown("""<div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+            <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <span class="tooltiptext">
+            DNA/RNA structure prediction using RNAfold from ViennaRNA Package.</span>
+            </div></div> 
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        seq_select = st.selectbox("Select sequence to view structure:", df_sequences['list_name'])
+
+    seq = df_sequences[df_sequences['list_name'] == seq_select].reset_index(drop=True)['seq'][0]
+
+    ss, _ = RNA.fold(seq)
+
+    home_dir = os.path.expanduser('~')
+    dir_path = os.path.join(home_dir, '.biotukey')
+    
+    RNA.svg_rna_plot(seq, ss, f"{dir_path}/rna_plot.svg")
+
+    with col2:
+        st.markdown("**Dot-bracket notation:**")
+        st.markdown(ss)
+        st.markdown("**Secondary structure:**")
+        st.image(f"{dir_path}/rna_plot.svg", use_column_width = 'always')
+
+def load(files, seq_type):
     seqs = {}
     
     for seq_class in files:
@@ -308,7 +367,7 @@ def load(files, seq_type):
 
     st.table(df)
 
-    tab1, tab2, tab3, tab4 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', 'Nucleotide distribution'])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', 'Nucleotide distribution', 'Structure visualization'])
 
     with tab1:
         df = seq_stats(seqs)
@@ -319,8 +378,6 @@ def load(files, seq_type):
         seq_alignment(seqs)
 
     with tab3:
-        st.markdown(f'### k-mer distribution for the {seq_type} class(es)')
-
         k = st.selectbox('Select size of k-mer:', ['1', '2', '3', '4', '5'])
 
         tab3_1, tab3_2 = st.tabs(['Average proportion', 'Individual proportion'])
@@ -333,53 +390,9 @@ def load(files, seq_type):
 
     with tab4:
         nt_distribution(seqs, seq_type)
-
-    # st.markdown('---')
-
-
-    # st.markdown('###### Hypothesis Testing')
-
-    # st.markdown('Compare two sequence types to check for statistical significance in proportions related to GC% content.')
-
-    # st.markdown('Null Hypothesis is:')
-
-    # st.markdown('$$H_0: p_1 = p_2$$')
-
-    # st.markdown('You can select the following Alternative Hypotheses:')
-
-    # st.markdown('$$H_1: p_1 \\neq p_2; p_1 > p_2; p_1 < p_2$$')
-
-    # with st.form("hypo_test"):
-    #     st.markdown('Select the sequences types to be compared for GC% content:')
-
-    #     type1 = st.selectbox('1st type ($p_1$):', [''] + list(seqs.keys()))
-
-    #     type2 = st.selectbox('2nd type ($p_2$):', [''] + list(seqs.keys()))
-
-    #     alternative = st.selectbox('Alternative Hypothesis:', ['two-sided', 'larger', 'smaller'])
-
-    #     alpha = float(st.text_input('Significance level $\\alpha$:', 0.05))
-
-    #     submitted = st.form_submit_button("Submit")
-        
-    #     st.markdown('---')
-
-    #     if submitted and type1 and type2:    
-    #         count1 = seqs[type1].nucleotide_count('G') + seqs[type1].nucleotide_count('C')
-    #         nobs1 = seqs[type1].seq_total_len()
-    #         count2 = seqs[type2].nucleotide_count('G') + seqs[type2].nucleotide_count('C')
-    #         nobs2 = seqs[type2].seq_total_len()
-
-    #         _, pvalue = prop.test_proportions_2indep(count1, nobs1, count2, nobs2, compare='diff', alternative=alternative)
-
-    #         st.markdown('$p_1 = $ {:.4f}, $p_2 = $ {:.4f}'.format(seqs[type1].gc_content()/100, seqs[type2].gc_content()/100))
-
-    #         st.markdown('***p*-value**: {:.4f}'.format(pvalue))
-
-    #         if pvalue > alpha:
-    #             st.markdown('Since *p*-value $> \\alpha$, we fail to reject the null hypothesis. At a {}% level of significance, there is not sufficient evidence to conclude the assumption of the alternative hypothesis.'.format(alpha*100))
-    #         else:
-    #             st.markdown('Since *p*-value $< \\alpha$, we reject the null hypothesis. At a {}% level of significance, the data support the assumption of the alternative hypothesis.'.format(alpha*100))
+    
+    with tab5:
+        structure_visualization(seqs, seq_type)
 
 if __name__ == '__main__':
     runUI()

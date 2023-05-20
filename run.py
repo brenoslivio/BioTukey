@@ -2,15 +2,26 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 import pandas as pd
 import utils, setup
+import os, shutil
 
 def runUI():
-    st.set_page_config(page_title = "BioTukey", page_icon = 'imgs/biotukey_icon.png', layout="wide")
+    st.set_page_config(page_title = "BioTukey", initial_sidebar_state = "expanded", page_icon = 'imgs/biotukey_icon.png', layout="wide")
 
     utils.inject_css()
 
+    home_dir = os.path.expanduser('~')
+    dir_path = os.path.join(home_dir, '.biotukey')
+
+    if os.path.exists(dir_path):
+        shutil.rmtree(dir_path)
+
+    os.makedirs(dir_path)
+
+    for i in range(10):
+        st.sidebar.markdown("")
     st.sidebar.markdown("---")
 
-    uploaded_files = st.sidebar.file_uploader("Select your FASTA files by sequence class", 
+    uploaded_files = st.sidebar.file_uploader("Select your FASTA files by sequence class",
                                                 accept_multiple_files=True, type=["fasta", "fa", "faa"], 
                                                 help="Each file must be named according to its class (e.g., sRNA.fasta). FASTA, FA, FAA files only.")
 
