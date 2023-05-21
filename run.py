@@ -12,10 +12,7 @@ def runUI():
     home_dir = os.path.expanduser('~')
     dir_path = os.path.join(home_dir, '.biotukey')
 
-    if os.path.exists(dir_path):
-        shutil.rmtree(dir_path)
-
-    os.makedirs(dir_path)
+    os.makedirs(dir_path, exist_ok=True)
 
     for i in range(10):
         st.sidebar.markdown("")

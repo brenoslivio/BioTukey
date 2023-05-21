@@ -31,7 +31,7 @@ import utils
 #     showmol(render_pdb_resn(viewer = xyzview, resn_lst = ['']), height = 500,width=800)# = ['ALA',]))
 
 
-def seq_alignment(seqs):
+def seq_alignment(seqs, seq_type):
     st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
             <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -49,6 +49,12 @@ def seq_alignment(seqs):
 
     seq_select = st.multiselect("Select sequences to view alignment:", df_sequences['list_name'], default =df_sequences['list_name'][0])
 
+    if seq_type == "DNA/RNA":
+        chars = ['A', 'C', 'G', 'T']
+    else:
+        chars = ['A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I',
+                 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V']
+
     if seq_select:
         with st.spinner('Loading...'):
             nseqs_selected = len(seq_select)
@@ -64,29 +70,30 @@ def seq_alignment(seqs):
             
             msa_dict = {sequence.id.decode():sequence.sequence.decode() for sequence in msa}
             
-            nucleotide_color = {"A": 0, "G": 0.25, "T": 0.5, "C": 0.75, "-": 1}
+            char_colors = {char: i / len(chars) for i, char in enumerate(chars)}
+            char_colors['-'] = 1
 
             msa_seqs = [[*msa_dict[id]] for id in msa_dict]
 
-            seqs_num = [[nucleotide_color[N] for N in msa_seq] for msa_seq in msa_seqs]
+            seqs_num = [[char_colors[N] for N in msa_seq] for msa_seq in msa_seqs]
 
-            colorscale= [[0, 'rgb(217,95,2)'], [0.25, 'rgb(230,171,2)'], [0.5, 'rgb(27,158,119)'], [0.75, 'rgb(117,112,179)'], [1, 'white']]
+            colorscale = [[char_colors[ch_color], utils.tol_pallette()[i]] for i, ch_color in enumerate(char_colors)]
+            colorscale[-1] = [1, 'white']
+            
             fig = make_subplots(rows=2, shared_xaxes=True, vertical_spacing=0.065, row_heights=[0.2, 0.8])
 
             np_seqs = np.array(msa_seqs)
 
             len_seqs = len(np_seqs[0])
 
-            df = pd.DataFrame({'Position': list(range(len_seqs)),
-                'A': [list(np_seqs[:,i]).count('A') for i in range(len_seqs)],
-                'G': [list(np_seqs[:,i]).count('G') for i in range(len_seqs)],
-                'T': [list(np_seqs[:,i]).count('T') for i in range(len_seqs)],
-                'C': [list(np_seqs[:,i]).count('C') for i in range(len_seqs)]})
+            df_dict = {'Position': list(range(len_seqs))}
 
-            colors = {'A': 'rgb(217,95,2)',
-                    'G': 'rgb(230,171,2)',
-                    'T': 'rgb(27,158,119)',
-                    'C': 'rgb(117,112,179)'}
+            for char in chars:
+                df_dict[char] = [list(np_seqs[:,i]).count(char) for i in range(len_seqs)]
+
+            df = pd.DataFrame(df_dict)
+
+            colors = {char: utils.tol_pallette()[i] for i, char in enumerate(chars)}
 
             data = []
 
@@ -148,7 +155,7 @@ def kmer_general_stats(k, seqs, seq_type):
             avgs_df = pd.concat([avgs_df, avg_df], axis = 1)
             kmers_df = pd.concat([kmers_df, kmer_df]).reset_index(drop=True)
 
-        fig = px.bar(avgs_df, barmode='group', color_discrete_sequence = px.colors.qualitative.Dark2,
+        fig = px.bar(avgs_df, barmode='group', color_discrete_sequence = utils.tol_pallette(),
                         labels={
                             "index": "k-mer",
                             "value": "Average proportion"
@@ -159,7 +166,6 @@ def kmer_general_stats(k, seqs, seq_type):
             width=900,
             title_text= f"k-mer average proportion by {seq_type} class",
             legend_title_text= f"{seq_type} class",
-            #legend = {"orientation":'h'}
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -173,27 +179,48 @@ def kmer_individual_stats(kmers_df):
 
     st.dataframe(kmers_df, use_container_width=True)
 
-def nt_distribution(seqs, seq_type):
+def char_distribution(seqs, seq_type):
 
-    plot = st.selectbox("Select distribution plot:", ['Boxplot', 'Violin plot'])
+    col1, col2 = st.columns(2)
+
+    with col1:
+        plot = st.selectbox("Select distribution plot:", ["Boxplot", "Violin plot", "Violin plot with boxplot"])
+
+    with col2:
+        points = st.selectbox("Which observations to explicitly show:", ["outliers", "all"])
+
+    if seq_type == "DNA/RNA":
+        chars = ['A', 'C', 'G', 'T']
+        names = ["Adenine", "Cytosine", "Guanine", "Thymine"]
+    else:
+        chars = ['A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I',
+                'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V']
+        names = ["Alanine", "Arginine", "Asparagine", "Aspartic acid", "Cysteine",
+                 "Glutamine", "Glutamic acid", "Glycine", "Histidine", "Isoleucine",
+                 "Leucine", "Lysine", "Methionine", "Phenylalanine", "Proline",
+                 "Serine", "Threonine", "Tryptophan", "Tyrosine", "Valine"]
+        
+    str_type = {"DNA/RNA": "nucleotide", "Protein": "amino acid"}
 
     with st.spinner('Loading...'):
         df_plot = pd.DataFrame()
 
         for seq_class in seqs:
-            new_df = pd.DataFrame(seqs[seq_class].df['seq'])
+            new_df = pd.DataFrame(seqs[seq_class].df[["name", "seq"]])
             new_df['class'] = seq_class
             
             df_plot = pd.concat([df_plot, new_df]).reset_index(drop=True)
 
         figures = {}
 
-        for N in ['A', 'C', 'G', 'T']:
+        for N in chars:
             df_plot[N] = df_plot['seq'].apply(lambda x : x.count(N) / len(x))
-            if plot == 'Boxplot':
-                figures[N] = px.box(df_plot, x='class', y=N, color='class', color_discrete_sequence=px.colors.qualitative.Dark2)
+            if plot == "Boxplot":
+                figures[N] = px.box(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_pallette())
+            elif plot == "Violin plot":
+                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_pallette())
             else:
-                figures[N] = px.violin(df_plot, x='class', y=N, color='class', color_discrete_sequence=px.colors.qualitative.Dark2)
+                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, box=True, color_discrete_sequence=utils.tol_pallette())
 
         figures_traces = collections.defaultdict(list)
 
@@ -201,14 +228,14 @@ def nt_distribution(seqs, seq_type):
             for trace in range(len(figures[N]["data"])):
                 figures_traces[N].append(figures[N]["data"][trace])
 
-        fig = make_subplots(rows=2, cols=2,
-            subplot_titles = ['Adenine', 'Cytosine', 'Guanine', 'Thymine'])
+        fig = make_subplots(rows=len(chars)//2, cols=2,
+            subplot_titles = names)
 
-        for i, N in enumerate(['A', 'C', 'G', 'T']):
+        for i, N in enumerate(chars):
             for traces in figures_traces[N]:
                 fig.add_trace(traces, row=(i//2) + 1, col=(i%2) + 1)
 
-        fig.update_layout(height=575, width=575, showlegend=False, title_text=f"{plot}s for nucleotide proportion in sequences by {seq_type} class")
+        fig.update_layout(height=250*(len(chars)//2), showlegend=False, title_text=f"{plot}s for {str_type[seq_type]} proportion in sequences by {seq_type} class")
 
         st.plotly_chart(fig, use_container_width=True)
 
@@ -402,7 +429,7 @@ def load(files, seq_type):
             <strong>Q3</strong>: 75th percentile for length of sequences;<br>
             <strong>N50</strong>: Length of the shortest read in the group of 
             longest sequences that together represent (at least) 50% of the 
-            nucleotides in the set of sequences;
+            characters in the set of sequences;
             {str_type[seq_type][0]}</span>
             </div></div> 
     """, unsafe_allow_html=True)
@@ -417,7 +444,7 @@ def load(files, seq_type):
         st.dataframe(df, use_container_width=True)
 
     with tab2:
-        seq_alignment(seqs)
+        seq_alignment(seqs, seq_type)
 
     with tab3:
         k = st.selectbox('Select size of k-mer:', ['1', '2', '3', '4', '5'])
@@ -431,7 +458,7 @@ def load(files, seq_type):
                 kmer_individual_stats(kmers_df)
 
     with tab4:
-        nt_distribution(seqs, seq_type)
+        char_distribution(seqs, seq_type)
     
     with tab5:
         structure_visualization(seqs, seq_type)

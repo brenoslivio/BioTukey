@@ -109,10 +109,14 @@ class Seq:
 
     def kmer_count(self, k):
         
-        bases = ['A', 'C', 'G', 'T']
-        
+        if self.seq_type == "DNA/RNA":
+            chars = ['A', 'C', 'G', 'T']
+        else:
+            chars = ['A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I',
+                    'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V']
+
         def dict_kmer(seq):
-            counts = {''.join(comb): 0 for comb in product(bases, repeat= k)}
+            counts = {''.join(comb): 0 for comb in product(chars, repeat= k)}
             L = len(seq) 
             for i in range(L - k + 1):
                 counts[seq[i:i+k]] += 1
