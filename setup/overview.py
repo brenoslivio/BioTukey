@@ -212,25 +212,40 @@ def nt_distribution(seqs, seq_type):
 
         st.plotly_chart(fig, use_container_width=True)
 
-def summary_stats(seqs):
+def summary_stats(seqs, seq_type):
+
     df = pd.DataFrame()
 
     for seq_class in seqs:
         seq_desc = seqs[seq_class].desc()
 
-        stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class, 
-                            "num_seqs": seq_desc['count'], 
-                            "min_len (nt)": seq_desc['min'],  
-                            "max_len (nt)": seq_desc['max'],
-                            "avg_len (nt)": seq_desc['mean'],
-                            "std_len (nt)": seq_desc['std'],
-                            "sum_len (nt)": seqs[seq_class].seq_total_len(),
-                            "Q1 (nt)": seq_desc['25%'],
-                            "Q2 (nt)": seq_desc['50%'],
-                            "Q3 (nt)": seq_desc['75%'],
-                            "N50 (nt)": seqs[seq_class].calc_N50(),
-                            "gc_content (%)": seqs[seq_class].avg_gc_content()}, 
-                            index = [0])
+        if seq_type == "DNA/RNA":
+            stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class, 
+                                "num_seqs": seq_desc['count'], 
+                                "min_len (nt)": seq_desc['min'],  
+                                "max_len (nt)": seq_desc['max'],
+                                "avg_len (nt)": seq_desc['mean'],
+                                "std_len (nt)": seq_desc['std'],
+                                "sum_len (nt)": seqs[seq_class].seq_total_len(),
+                                "Q1 (nt)": seq_desc['25%'],
+                                "Q2 (nt)": seq_desc['50%'],
+                                "Q3 (nt)": seq_desc['75%'],
+                                "N50 (nt)": seqs[seq_class].calc_N50(),
+                                "gc_content (%)": seqs[seq_class].avg_gc_content()}, 
+                                index = [0])
+        else:
+            stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class, 
+                                "num_seqs": seq_desc['count'], 
+                                f"min_len (aa)": seq_desc['min'],  
+                                f"max_len (aa)": seq_desc['max'],
+                                f"avg_len (aa)": seq_desc['mean'],
+                                f"std_len (aa)": seq_desc['std'],
+                                f"sum_len (aa)": seqs[seq_class].seq_total_len(),
+                                f"Q1 (aa)": seq_desc['25%'],
+                                f"Q2 (aa)": seq_desc['50%'],
+                                f"Q3 (aa)": seq_desc['75%'],
+                                f"N50 (aa)": seqs[seq_class].calc_N50()}, 
+                                index = [0])
         
         df = pd.concat([df, stats_df]).reset_index(drop=True)
 
@@ -247,19 +262,28 @@ def summary_stats(seqs):
 
     return df
 
-def seq_stats(seqs):
-    st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+def seq_stats(seqs, seq_type):
+    str_type = {"DNA/RNA": """<br><strong>gc_content</strong>: Sequence's GC% content;<br>
+                            <strong>num_orfs</strong>: Number of Open Reading Frames (ORFs) in the sequence;<br>
+                            <strong>min_len_orf</strong>: Minimum length of ORFs' lengths;<br>
+                            <strong>max_len_orf</strong>: Maximum length of ORFs' lengths;<br>
+                            <strong>avg_len_orf</strong>: Average length of ORFs' lengths;<br>
+                            <strong>std_len_orf</strong>: Standard deviation of length of ORFs' lengths;""",
+                "Protein": """<br><strong>aliphatic</strong>: Aliphatic amino acids (alanine - A, glycine - G, isoleucine - I, leucine - L, proline - P, valine - V);<br>
+                            <strong>aromatic</strong>: Aromatic amino acids (phenylalanine - F, typtophan - W, tyrosine - Y);<br>
+                            <strong>acidic</strong>: Acidic amino acids (aspartic acid - D, glutamic acid - E);<br>
+                            <strong>basic</strong>: Basic amino acids (arginine - R, histidine - H, lysine - K);<br>
+                            <strong>hidroxylic</strong>: Hydroxylic amino acids (serine - S, threonine - T);<br>
+                            <strong>sulphur</strong>: Sulphur-containing amino acids (cysteine - C, methionine - M);<br>
+                            <strong>amidic</strong>: Amino acids containing amide group (asparagine - N, glutamine - Q);"""}
+
+    st.markdown(f"""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
             <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             <span class="tooltiptext">
             <strong>nameseq</strong>: Sequence's name;<br>
-            <strong>length</strong>: Sequence's length;<br>
-            <strong>num_orfs</strong>: Number of Open Reading Frames (ORFs) in the sequence;<br>
-            <strong>min_len_orf</strong>: Minimum length of ORFs' lengths;<br>
-            <strong>max_len_orf</strong>: Maximum length of ORFs' lengths;<br>
-            <strong>avg_len_orf</strong>: Average length of ORFs' lengths;<br>
-            <strong>std_len_orf</strong>: Standard deviation of length of ORFs' lengths;<br>
-            <strong>gc_content</strong>: Sequence's GC% content;</span>
+            <strong>length</strong>: Sequence's length;
+            {str_type[seq_type]}</span>
             </div></div> 
     """, unsafe_allow_html=True)
 
@@ -267,18 +291,32 @@ def seq_stats(seqs):
 
     for seq_class in seqs:
         
-        num_orfs, min_len_orf, max_len_orf, avg_len_orf, std_len_orf  = seqs[seq_class].orf_stats()
-    
-        stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class,
-                            "nameseq": seqs[seq_class].df["name"],
-                            "length (nt)": seqs[seq_class].seq_len(),
-                            "num_orfs": num_orfs,
-                            "min_len_orf (nt)": min_len_orf, 
-                            "max_len_orf (nt)": max_len_orf,
-                            "avg_len_orf (nt)": avg_len_orf,
-                            "std_len_orf (nt)": std_len_orf,
-                            "gc_content (%)": seqs[seq_class].gc_content()})
+        if seq_type == "DNA/RNA":
+            num_orfs, min_len_orf, max_len_orf, avg_len_orf, std_len_orf  = seqs[seq_class].orf_stats()
+        
+            stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class,
+                                "nameseq": seqs[seq_class].df["name"],
+                                "length (nt)": seqs[seq_class].seq_len(),
+                                "num_orfs": num_orfs,
+                                "min_len_orf (nt)": min_len_orf, 
+                                "max_len_orf (nt)": max_len_orf,
+                                "avg_len_orf (nt)": avg_len_orf,
+                                "std_len_orf (nt)": std_len_orf,
+                                "gc_content (%)": seqs[seq_class].gc_content()})
+        else:
+            aliphatic, aromatic, acidic, basic, hidroxylic, sulphur, amidic = seqs[seq_class].aa_stats()
 
+            stats_df = pd.DataFrame({"class": seqs[seq_class].seq_class,
+                    "nameseq": seqs[seq_class].df["name"],
+                    "length (aa)": seqs[seq_class].seq_len(),
+                    "aliphatic (%)": aliphatic,
+                    "aromatic (%)": aromatic,
+                    "acidic (%)": acidic,
+                    "basic (%)": basic,
+                    "hidroxylic (%)": hidroxylic,
+                    "sulphur (%)": sulphur,
+                    "amidic (%)": amidic,})
+            
         df = pd.concat([df, stats_df]).reset_index(drop=True)
 
     th_props = [
@@ -341,11 +379,15 @@ def load(files, seq_type):
         seq = utils.Seq(files[seq_class], seq_class, seq_type)
         seqs[seq_class] = seq
 
-    df = summary_stats(seqs)
-
     st.markdown("Dataset provided has " + str(len(seqs)) + " " + seq_type + " class(es): " + ', '.join(seqs) + '. ' \
-                + 'Summary statistics for the sequences by class:')
-    st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+            + 'Summary statistics for the sequences by class:')
+
+    df = summary_stats(seqs, seq_type)
+
+    str_type = {"DNA/RNA": ["<br><strong>gc_content</strong>: Average GC% content considering all sequences;", "Nucleotide"],
+                "Protein": ["", "Amino acid"]}
+    
+    st.markdown(f"""<div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
             <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             <span class="tooltiptext">
@@ -360,17 +402,17 @@ def load(files, seq_type):
             <strong>Q3</strong>: 75th percentile for length of sequences;<br>
             <strong>N50</strong>: Length of the shortest read in the group of 
             longest sequences that together represent (at least) 50% of the 
-            nucleotides in the set of sequences;<br>
-            <strong>gc_content</strong>: Average GC% content considering all sequences;</span>
+            nucleotides in the set of sequences;
+            {str_type[seq_type][0]}</span>
             </div></div> 
     """, unsafe_allow_html=True)
 
     st.table(df)
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', 'Nucleotide distribution', 'Structure visualization'])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', f'{str_type[seq_type][1]} distribution', 'Structure visualization'])
 
     with tab1:
-        df = seq_stats(seqs)
+        df = seq_stats(seqs, seq_type)
 
         st.dataframe(df, use_container_width=True)
 

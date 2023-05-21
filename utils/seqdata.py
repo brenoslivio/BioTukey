@@ -89,7 +89,25 @@ class Seq:
                 
         return num_orfs, min_len_orf, max_len_orf, avg_len_orf, std_len_orf
     
-    def kmer_count(self, k: int):
+    def aa_stats(self):
+        aliphatic = [((seq.count('G') + seq.count('A') + seq.count('V') + 
+                      seq.count('L') + seq.count('I') + seq.count('P'))/len(seq))*100 for seq in self.df['seq']]
+        
+        aromatic = [((seq.count('F') + seq.count('W') + seq.count('Y'))/len(seq))*100 for seq in self.df['seq']]
+        
+        acidic = [((seq.count('D') + seq.count('E'))/len(seq))*100 for seq in self.df['seq']]
+
+        basic = [((seq.count('K') + seq.count('R') + seq.count('H'))/len(seq))*100 for seq in self.df['seq']]
+
+        hidroxylic = [((seq.count('S') + seq.count('T'))/len(seq))*100 for seq in self.df['seq']]
+
+        sulphur = [((seq.count('C') + seq.count('M'))/len(seq))*100 for seq in self.df['seq']]
+
+        amidic = [((seq.count('N') + seq.count('Q'))/len(seq))*100 for seq in self.df['seq']]
+        
+        return aliphatic, aromatic, acidic, basic, hidroxylic, sulphur, amidic
+
+    def kmer_count(self, k):
         
         bases = ['A', 'C', 'G', 'T']
         

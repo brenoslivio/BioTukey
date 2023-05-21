@@ -65,5 +65,9 @@ def load_study(study):
             dir_path = "examples/example1/train/"
             files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
             seq_type = "DNA/RNA"
+        case "secreted proteins":
+            dir_path = "examples/example2/train/"
+            files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
+            seq_type = "Protein"
 
     return files, seq_type

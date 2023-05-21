@@ -25,7 +25,7 @@ def runUI():
                                                 accept_multiple_files=True, type=["fasta", "fa", "faa"], 
                                                 help="Each file must be named according to its class (e.g., sRNA.fasta). FASTA, FA, FAA files only.")
 
-    study_example = st.sidebar.selectbox("Or select study example", ['', "ncRNAs"])
+    study_example = st.sidebar.selectbox("Or select study example", ['', "ncRNAs", "secreted proteins"])
 
     option = st.sidebar.radio("Select option to load", ["Manual", "Example"], horizontal=True)
 
@@ -71,6 +71,14 @@ def runUI():
                                 and metalearning to predict noncoding RNAs in bacteria, \
                                 Briefings in Bioinformatics, Volume 23, Issue 4, July 2022, \
                                 bbac218, https://doi.org/10.1093/bib/bbac218")
+                    case "secreted proteins":
+                        st.info("**Dataset from the following published paper:** \
+                                 Yanju Zhang, Sha Yu, Ruopeng Xie, Jiahui Li, André Leier, Tatiana T Marquez-Lago, \
+                                Tatsuya Akutsu, A Ian Smith, Zongyuan Ge, Jiawei Wang, Trevor Lithgow, Jiangning Song, \
+                                PeNGaRoo, a combined gradient boosting and ensemble learning framework for predicting \
+                                non-classical secreted proteins, Bioinformatics, Volume 36, \
+                                Issue 3, February 2020, Pages 704–712, \
+                                https://doi.org/10.1093/bioinformatics/btz629")
                         
             setup.overview.load(files, seq_type)
             
