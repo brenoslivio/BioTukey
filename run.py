@@ -12,16 +12,18 @@ def runUI():
     home_dir = os.path.expanduser('~')
     dir_path = os.path.join(home_dir, '.biotukey')
 
+    shutil.rmtree(dir_path, ignore_errors=True)
+
     os.makedirs(dir_path, exist_ok=True)
 
-    for i in range(10):
+    for _ in range(10):
         st.sidebar.markdown("")
     st.sidebar.markdown("---")
 
     uploaded_files = st.sidebar.file_uploader("Select your FASTA files by sequence class",
                                                 accept_multiple_files=True, type=["fasta", "fa", "faa"], 
                                                 help="Each file must be named according to its class (e.g., sRNA.fasta). FASTA, FA, FAA files only.")
-
+    type_selection = st.sidebar.selectbox("Select sequence type:", ["DNA/RNA", "Protein"])
     study_example = st.sidebar.selectbox("Or select study example", ['', "ncRNAs", "secreted proteins"])
 
     option = st.sidebar.radio("Select option to load", ["Manual", "Example"], horizontal=True)
@@ -47,7 +49,7 @@ def runUI():
                     st.sidebar.warning("Please select files.")
                 else:
                     st.sidebar.success("Files submitted with success.")
-                    files, seq_type = utils.processing.process_files(uploaded_files)
+                    files, seq_type = utils.processing.process_files(uploaded_files, type_selection)
             case "Example":
                 if not study_example:
                     st.sidebar.warning("Please select study example.")
@@ -55,7 +57,7 @@ def runUI():
                     st.sidebar.success("Example submitted with success.")
                     files, seq_type = utils.processing.load_study(study_example)
 
-    if (option == "Manual" and uploaded_files) or (option == "Example" and study_example):
+    if (option == "Manual" and uploaded_files and files) or (option == "Example" and study_example and files):
 
         if page == "Overview":
             if option == "Example":

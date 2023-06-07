@@ -16,6 +16,6 @@ def inject_css():
                     background-repeat: no-repeat;
                     background-position: 50% 5%;
                     margin-top: -0.2%;
-                    background-size: 75%;
+                    background-size: 175px;
                     }}
                     {f.read()}</style>''', unsafe_allow_html=True)

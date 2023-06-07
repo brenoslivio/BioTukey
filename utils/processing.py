@@ -4,7 +4,7 @@ import re
 from Bio import SeqIO
 
 
-def process_files(uploaded_files):
+def process_files(uploaded_files, type_selection):
 
     home_dir = os.path.expanduser('~')
     dir_path = os.path.join(home_dir, '.biotukey')
@@ -18,43 +18,36 @@ def process_files(uploaded_files):
 
     files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
 
-    seq_type = None
-
     alphabets = {'nt': re.compile('^[acgtu]*$', re.I), 
                 'aa': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I),
-                'aa_exclusive': re.compile('[defhiklmpqrsvwy]', re.I)} # aa exclusive characters
+                'aa_exclusive': re.compile('[defhiklmpqrsvwy]', re.I)} 
 
     for seq_class in files:
 
         pre_file = dir_path + 'processed_' + seq_class + '.fasta'
 
         with open(pre_file, mode='a') as f:
-            protein = False
             for record in SeqIO.parse(files[seq_class], 'fasta'):
 
-                if alphabets['aa_exclusive'].search(str(record.seq)) is not None:
-                    protein = True
-                    break
-            
-            for record in SeqIO.parse(files[seq_class], 'fasta'):
-
-                if protein:
-                    if alphabets['aa'].search(str(record.seq)) is not None:
-                        f.write(f">{record.id}\n")
-                        f.write(f"{record.seq}\n")
-                else: 
+                if type_selection == "DNA/RNA":
+                    if alphabets['aa_exclusive'].search(str(record.seq)) is not None:
+                        st.error("Inconsistent sequence file.")
+                        return False, False
                     if alphabets['nt'].search(str(record.seq)) is not None:
                         f.write(f">{record.id}\n")
                         f.write(f"{record.seq}\n")
+                else: 
+                    if alphabets['aa_exclusive'].search(str(record.seq)) is None:
+                        st.error("Inconsistent sequence file.")
+                        return False, False
+                    if alphabets['aa'].search(str(record.seq)) is not None:
+                        f.write(f">{record.id}\n")
+                        f.write(f"{record.seq}\n")
 
-            if protein:
-                seq_type = 'Protein'
-            else:
-                seq_type = 'DNA/RNA'
 
         files[seq_class] = pre_file
             
-    return files, seq_type
+    return files, type_selection
 
 def load_study(study):
     files = {}

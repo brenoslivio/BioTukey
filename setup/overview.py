@@ -1,42 +1,44 @@
 import streamlit as st
-#import statsmodels.stats.proportion as prop
 from plotly.subplots import make_subplots
 import plotly.express as px
 import collections
 import pandas as pd
 import RNA
 import os
-# from stmol import showmol,render_pdb
-# import py3Dmol
-# from pypdb import *
-# from stmol import showmol, render_pdb_resn
+import py3Dmol
+from pypdb import *
+from stmol import showmol, render_pdb_resn
 import numpy as np
 import matplotlib.pyplot as plt
-import base64
 from pyfamsa import Aligner, Sequence
 import plotly.graph_objects as go
-from Bio import SeqIO
 import utils
 
-# def show_protein():
-#     q = Query("MKELQTVLKNHFEIEFADKKLLETAFTHTSYANEHRLLKISHNERLEFLGDAVLQLLISEYLYKKYPKKPEGDLSKLRAMIVREESLAGFARDCQFDQFIKLGKGEEKSGGRNRDTILGDAFEAFLGALLLDKDVAKVKEFIYQVMIPKVEAGEFEMITDYKTHLQELLQVNGDVAIRYQVISETGPAHDKVFDVEVLVEGKSIGQGQGRSKKLAEQEAAKNAVEKGLDSCI", 
-#     query_type="sequence", 
-#     return_type="polymer_entity")
+def information_content(col, align_length):
+    rel_freqs = [b/sum(col[1:]) for b in col[1:]]
+    s = len(rel_freqs)
 
-#     id_pdb = q.search()["result_set"][0]["identifier"].split('_')[0]
+    entropy = -sum([freq * np.log2(freq) if freq != 0 else 0 for freq in rel_freqs])
 
-#     xyzview = py3Dmol.view(query=f'pdb:{id_pdb}')
-#     xyzview.setStyle({'cartoon':{'color':'spectrum'}})
-    
-#     showmol(render_pdb_resn(viewer = xyzview, resn_lst = ['']), height = 500,width=800)# = ['ALA',]))
+    sample_correction = (1 / np.log(2)) * ((s - 1)/ (2 * align_length))
+    R_i = np.log2(s) - (entropy + sample_correction)
 
+    return R_i
+
+def relative_information(col, freq, ic):
+    rel_freq = freq/sum(col[1:])
+
+    height = rel_freq * ic
+
+    return height
 
 def seq_alignment(seqs, seq_type):
     st.markdown("""  <div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
             <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             <span class="tooltiptext">
-            Multiple Sequence Alignment (MSA) using FAMSA algorithm.</span>
+            Multiple Sequence Alignment (MSA) using FAMSA algorithm.<br/>
+            The bar chart simulates the sequence logo representation by calculating information content measured in bits based on the alignment.</span>
             </div></div> 
     """, unsafe_allow_html=True)
 
@@ -77,7 +79,7 @@ def seq_alignment(seqs, seq_type):
 
             seqs_num = [[char_colors[N] for N in msa_seq] for msa_seq in msa_seqs]
 
-            colorscale = [[char_colors[ch_color], utils.tol_pallette()[i]] for i, ch_color in enumerate(char_colors)]
+            colorscale = [[char_colors[ch_color], utils.tol_palette()[i]] for i, ch_color in enumerate(char_colors)]
             colorscale[-1] = [1, 'white']
             
             fig = make_subplots(rows=2, shared_xaxes=True, vertical_spacing=0.065, row_heights=[0.2, 0.8])
@@ -93,17 +95,17 @@ def seq_alignment(seqs, seq_type):
 
             df = pd.DataFrame(df_dict)
 
-            colors = {char: utils.tol_pallette()[i] for i, char in enumerate(chars)}
+            colors = {char: utils.tol_palette()[i] for i, char in enumerate(chars)}
 
             data = []
-
+            
             for i in range(df.shape[0]):
                 ordered_columns = df.columns[1:][np.argsort(df.iloc[i, 1:].values)]
 
+                info_col = information_content(df.iloc[i], df.shape[0])
                 for _, column in enumerate(ordered_columns):
-                    
                     data.append(go.Bar(x=[df['Position'][i]],
-                                    y=[df[column][i]],
+                                    y=[relative_information(df.iloc[i], df[column][i], info_col)],
                                     textfont=dict(
                                         family="Trebuchet MS",
                                         size = 10,
@@ -115,7 +117,7 @@ def seq_alignment(seqs, seq_type):
                                     legendgroup=column,
                                     showlegend=i == 0,
                                     hovertemplate = "<b>Character: </b>" + column + " "
-                                            "<br><b>Frequency:</b> %{y}" +
+                                            "<br><b>Information content:</b> %{y}" +
                                             "<br><b>Position:</b> %{x} <extra></extra>")) 
 
             fig_hm = px.imshow(seqs_num, aspect = 'auto')
@@ -155,7 +157,7 @@ def kmer_general_stats(k, seqs, seq_type):
             avgs_df = pd.concat([avgs_df, avg_df], axis = 1)
             kmers_df = pd.concat([kmers_df, kmer_df]).reset_index(drop=True)
 
-        fig = px.bar(avgs_df, barmode='group', color_discrete_sequence = utils.tol_pallette(),
+        fig = px.bar(avgs_df, barmode='group', color_discrete_sequence = utils.tol_palette(),
                         labels={
                             "index": "k-mer",
                             "value": "Average proportion"
@@ -216,11 +218,11 @@ def char_distribution(seqs, seq_type):
         for N in chars:
             df_plot[N] = df_plot['seq'].apply(lambda x : x.count(N) / len(x))
             if plot == "Boxplot":
-                figures[N] = px.box(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_pallette())
+                figures[N] = px.box(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_palette())
             elif plot == "Violin plot":
-                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_pallette())
+                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_palette())
             else:
-                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, box=True, color_discrete_sequence=utils.tol_pallette())
+                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, box=True, color_discrete_sequence=utils.tol_palette())
 
         figures_traces = collections.defaultdict(list)
 
@@ -240,7 +242,6 @@ def char_distribution(seqs, seq_type):
         st.plotly_chart(fig, use_container_width=True)
 
 def summary_stats(seqs, seq_type):
-
     df = pd.DataFrame()
 
     for seq_class in seqs:
@@ -371,33 +372,59 @@ def structure_visualization(seqs, seq_type):
         df_seq['list_name'] = seq_class + ' - ' + df_seq['name']
         df_sequences = pd.concat([df_sequences, df_seq]).reset_index(drop=True)
 
-    st.markdown("""<div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
-            <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-            <span class="tooltiptext">
-            DNA/RNA structure prediction using RNAfold from ViennaRNA Package.</span>
-            </div></div> 
-    """, unsafe_allow_html=True)
+    tip_type = {"DNA/RNA": "DNA/RNA structure prediction using RNAfold from ViennaRNA Package.",
+                "Protein": "Protein structure visualization using stmol with pypdb."}
 
-    col1, col2 = st.columns(2)
+    st.markdown(f"""<div style="display: flex; justify-content: flex-end"><div class="tooltip"> 
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#66676e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+                <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span class="tooltiptext">
+                {tip_type[seq_type]}</span>
+                </div></div> 
+        """, unsafe_allow_html=True)
 
-    with col1:
-        seq_select = st.selectbox("Select sequence to view structure:", df_sequences['list_name'])
+    if seq_type == "DNA/RNA":
+        col1, col2 = st.columns(2)
 
-    seq = df_sequences[df_sequences['list_name'] == seq_select].reset_index(drop=True)['seq'][0]
+        with col1:
+            seq_select = st.selectbox("Select sequence to view structure:", df_sequences['list_name'])
 
-    ss, _ = RNA.fold(seq)
+        seq = df_sequences[df_sequences['list_name'] == seq_select].reset_index(drop=True)['seq'][0]
 
-    home_dir = os.path.expanduser('~')
-    dir_path = os.path.join(home_dir, '.biotukey')
-    
-    RNA.svg_rna_plot(seq, ss, f"{dir_path}/rna_plot.svg")
+        ss, _ = RNA.fold(seq)
 
-    with col2:
-        st.markdown("**Dot-bracket notation:**")
-        st.markdown(ss)
-        st.markdown("**Secondary structure:**")
-        st.image(f"{dir_path}/rna_plot.svg", use_column_width = 'always')
+        home_dir = os.path.expanduser('~')
+        dir_path = os.path.join(home_dir, '.biotukey')
+        
+        RNA.svg_rna_plot(seq, ss, f"{dir_path}/rna_plot.svg")
+
+        with col2:
+            st.markdown("**Dot-bracket notation:**")
+            st.markdown(ss)
+            st.markdown("**Secondary structure:**")
+            st.image(f"{dir_path}/rna_plot.svg", use_column_width = 'always')
+    else:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            seq_select = st.selectbox("Select sequence to view structure:", df_sequences['list_name'])
+            aa_view = st.multiselect("Select amino acids to label in the structure:", 
+                                    ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 
+                                    'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 
+                                    'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'])
+
+        seq = df_sequences[df_sequences['list_name'] == seq_select].reset_index(drop=True)['seq'][0]
+
+        q = Query(seq, query_type="sequence", return_type="polymer_entity")
+
+        id_pdb = q.search()["result_set"][0]["identifier"].split('_')[0]
+
+        with col2:
+            st.markdown(f"**Structure:** {id_pdb}")
+            xyzview = py3Dmol.view(query=f'pdb:{id_pdb}')
+            xyzview.setStyle({'cartoon':{'color':'spectrum'}})
+            showmol(render_pdb_resn(viewer = xyzview, resn_lst = aa_view), height = 500, width=800)
+
 
 def load(files, seq_type):
     seqs = {}
@@ -406,7 +433,7 @@ def load(files, seq_type):
         seq = utils.Seq(files[seq_class], seq_class, seq_type)
         seqs[seq_class] = seq
 
-    st.markdown("Dataset provided has " + str(len(seqs)) + " " + seq_type + " class(es): " + ', '.join(seqs) + '. ' \
+    st.markdown("Data set provided has " + str(len(seqs)) + " " + seq_type + " class(es): " + ', '.join(seqs) + '. ' \
             + 'Summary statistics for the sequences by class:')
 
     df = summary_stats(seqs, seq_type)
@@ -447,7 +474,7 @@ def load(files, seq_type):
         seq_alignment(seqs, seq_type)
 
     with tab3:
-        k = st.selectbox('Select size of k-mer:', ['1', '2', '3', '4', '5'])
+        k = st.selectbox('Select k-mer size:', ['1', '2', '3', '4', '5'])
 
         tab3_1, tab3_2 = st.tabs(['Average proportion', 'Individual proportion'])
 
