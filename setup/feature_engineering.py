@@ -1,5 +1,4 @@
 import streamlit as st
-import utils
 import pandas as pd
 import os, shutil
 import numpy as np
@@ -8,6 +7,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.manifold import TSNE
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import mutual_info_classif, RFE
+from functools import partial
+import plotly.figure_factory as ff
 from umap import UMAP
 from sklearn.decomposition import PCA
 import plotly.graph_objects as go
@@ -169,7 +170,7 @@ def dimensionality_reduction(scaled_data, labels, nameseqs):
                         marker=dict(
                             color=px.colors.qualitative.Dark2[i], size=3,
                         ),
-                        hovertemplate=f"nameseq = {names[label]} <br> class = {label}",
+                        hovertemplate=names[label],
                         textposition='top center',
                         hoverinfo='text'
                     ))
@@ -222,36 +223,84 @@ def feature_correlation(features):
         fig.update_layout(height=800)
         st.plotly_chart(fig, use_container_width=True)
 
-def feature_importance(features, labels):
+def feature_importance(features, colnames, labels):
     feature_selection_method = st.selectbox("Select feature selection method", ["Mutual Information", "Recursive Feature Elimination"])
 
-    if feature_selection_method == "Mutual Information":
-        scores = mutual_info_classif(features, labels)
-    else:
-        model = RandomForestClassifier() 
-        rfe = RFE(model)
-        rfe.fit(features, labels)
-        scores = rfe.ranking_
+    with st.spinner('Loading...'):
+        if feature_selection_method == "Mutual Information":
+            scores = partial(mutual_info_classif, random_state=0)(features, labels)
+        else:
+            model = RandomForestClassifier(random_state=0) 
+            rfe = RFE(model)
+            rfe.fit(features, labels)
+            scores = rfe.ranking_
 
-    colnames = features.columns
+        # Sort features by importance
+        sorted_indices = np.argsort(scores)
+        sorted_colnames = colnames[sorted_indices]
+        sorted_scores = scores[sorted_indices]
 
-    # Sort features by importance
-    sorted_indices = np.argsort(scores)
-    sorted_colnames = colnames[sorted_indices]
-    sorted_scores = scores[sorted_indices]
+        fig = go.Figure(data=go.Bar(
+            x=sorted_colnames,
+            y=sorted_scores,
+            marker=dict(color=sorted_scores, colorscale='purples'),
+            hovertemplate='Feature: %{x}<br>Importance: %{y}<extra></extra>'
+        ))
+        fig.update_layout(
+            title="Feature Importance",
+            xaxis_title="Features",
+            yaxis_title="Importance",
+        )
 
-    fig = go.Figure(data=go.Bar(
-        x=sorted_colnames,
-        y=sorted_scores,
-        marker=dict(color=sorted_scores, colorscale='purples')
-    ))
-    fig.update_layout(
-        title="Feature Importance",
-        xaxis_title="Features",
-        yaxis_title="Importance",
-    )
+        st.plotly_chart(fig, use_container_width=True)
 
-    st.plotly_chart(fig, use_container_width=True)
+def feature_distribution(features, labels, nameseqs):
+    col1, col2 = st.columns(2)
+
+    # Select feature to plot
+    with col1:
+        selected_feature = st.selectbox("Select a feature", features.columns)
+
+    # Get unique labels and assign colors
+    unique_labels = labels.unique()
+    color_map = px.colors.qualitative.Dark2[:len(unique_labels)]
+
+    with col2:
+        num_bins = st.slider("Number of Bins", min_value=5, max_value=50, value=30)
+
+    with st.spinner('Loading...'):
+        fig_data = []
+        fig_rug_text = []
+
+        feature_data = features[selected_feature].values.astype(float)
+
+        for label in unique_labels:
+            group_indices = (labels == label).values
+            group_data = feature_data[group_indices]
+            fig_data.append(group_data)
+
+            group_names = nameseqs[group_indices].tolist()
+            fig_rug_text.append(group_names)
+
+        bin_edges = np.histogram(fig_data[0], bins=num_bins)[1]
+
+        fig = ff.create_distplot(
+            fig_data,
+            unique_labels,
+            bin_size=bin_edges,
+            colors=color_map,
+            rug_text=fig_rug_text,
+            histnorm="probability density"
+        )
+
+        fig.update_layout(
+            title=f"Feature distribution for {selected_feature}",
+            xaxis_title=selected_feature,
+            yaxis_title="Density",
+            height=800
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
 
 def load(files, seq_type):
     col1, col2 = st.columns(2)
@@ -282,7 +331,6 @@ def load(files, seq_type):
 
                 nameseqs = features.pop("nameseq")
                 labels = features.pop("label")
-                colnames = features.columns
                 scaled_data = scaler.fit_transform(features)
 
                 st.session_state['data'] = [features, scaled_data, labels, nameseqs]
@@ -294,13 +342,16 @@ def load(files, seq_type):
 
 
     if 'data' in st.session_state:
-        tab1, tab2, tab3 = st.tabs(["Dimensionality Reduction", "Feature Correlation", "Feature Importance"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Feature Distribution", "Dimensionality Reduction", "Feature Correlation", "Feature Importance"])
 
         with tab1:
-            dimensionality_reduction(st.session_state['data'][1], st.session_state['data'][2], st.session_state['data'][3])
+            feature_distribution(st.session_state['data'][0], st.session_state['data'][2], st.session_state['data'][3])
 
         with tab2:
-            feature_correlation(st.session_state['data'][0])
+            dimensionality_reduction(st.session_state['data'][1], st.session_state['data'][2], st.session_state['data'][3])
 
         with tab3:
-            feature_importance(st.session_state['data'][0], st.session_state['data'][2])
+            feature_correlation(st.session_state['data'][0])
+
+        with tab4:
+            feature_importance(st.session_state['data'][1], st.session_state['data'][0].columns, st.session_state['data'][2])
