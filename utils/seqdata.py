@@ -25,6 +25,9 @@ class Seq:
                 seqs.append(str(record.seq))
 
         self.df = pd.DataFrame({'name': names, 'seq': seqs})
+
+    def __len__(self):
+        return len(self.df)
     
     def desc(self):
         return self.df['seq'].apply(lambda x: len(x)).describe()

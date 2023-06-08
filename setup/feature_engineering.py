@@ -15,12 +15,12 @@ import plotly.graph_objects as go
 import plotly.express as px
 import utils
 
-def feature_extraction(fasta_files, descriptors):
+def feature_extraction(fasta_files, descriptors, seq_type):
     home_dir = os.path.expanduser('~')
-    dir_path = os.path.join(home_dir, '.biotukey/feat_engineering')
+    dir_path = os.path.join(home_dir, '.biotukey/feat_engineering/train')
 
     try:
-        shutil.rmtree(dir_path)
+        shutil.rmtree('.biotukey/feat_engineering')
     except OSError as e:
         print("Error: %s - %s." % (e.filename, e.strerror))
         print('Creating Directory...')
@@ -32,92 +32,129 @@ def feature_extraction(fasta_files, descriptors):
     for seq_class in fasta_files:
         datasets = []
 
-        if "Nucleotide acid composition (NAC)" in descriptors:
-            dataset = dir_path + '/NAC.csv'
+        if seq_type == "DNA/RNA":
+            if "Nucleotide acid composition (NAC)" in descriptors:
+                dataset = dir_path + '/NAC.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py',
-                            '-i', fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                            '-t', 'NAC', '-seq', '1'], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
+                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py',
+                                '-i', fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-t', 'NAC', '-seq', '1'], 
+                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
 
-        if "Dinucleotide composition (DNC)" in descriptors:
-            dataset = dir_path + '/DNC.csv'
+            if "Dinucleotide composition (DNC)" in descriptors:
+                dataset = dir_path + '/DNC.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py', '-i',
-                            fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                            '-t', 'DNC', '-seq', '1'], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
+                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-t', 'DNC', '-seq', '1'], 
+                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
 
-        if "Trinucleotide composition (TNC)" in descriptors:
-            dataset = dir_path + '/TNC.csv'
+            if "Trinucleotide composition (TNC)" in descriptors:
+                dataset = dir_path + '/TNC.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py', '-i',
-                            fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                            '-t', 'TNC', '-seq', '1'], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
+                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-t', 'TNC', '-seq', '1'], 
+                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
 
-        if "Xmer k-Spaced Ymer composition frequency (kGap)" in descriptors:
-            dataset_di = dir_path + '/kGap_di.csv'
-            dataset_tri = dir_path + '/kGap_tri.csv'
+            if "Xmer k-Spaced Ymer composition frequency (kGap)" in descriptors:
+                dataset_di = dir_path + '/kGap_di.csv'
+                dataset_tri = dir_path + '/kGap_tri.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/Kgap.py', '-i',
-                            fasta_files[seq_class], '-o', dataset_di, '-l',
-                            seq_class, '-k', '1', '-bef', '1',
-                            '-aft', '2', '-seq', '1'],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                subprocess.run(['python', 'MathFeature/methods/Kgap.py', '-i',
+                                fasta_files[seq_class], '-o', dataset_di, '-l',
+                                seq_class, '-k', '1', '-bef', '1',
+                                '-aft', '2', '-seq', '1'],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-            subprocess.run(['python', 'MathFeature/methods/Kgap.py', '-i',
-                            fasta_files[seq_class], '-o', dataset_tri, '-l',
-                            seq_class, '-k', '1', '-bef', '1',
-                            '-aft', '3', '-seq', '1'],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset_di)
-            datasets.append(dataset_tri)
+                subprocess.run(['python', 'MathFeature/methods/Kgap.py', '-i',
+                                fasta_files[seq_class], '-o', dataset_tri, '-l',
+                                seq_class, '-k', '1', '-bef', '1',
+                                '-aft', '3', '-seq', '1'],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset_di)
+                datasets.append(dataset_tri)
 
-        if "Open Reading Frame (ORF)" in descriptors:
-            dataset = dir_path + '/ORF.csv'
+            if "Open Reading Frame (ORF)" in descriptors:
+                dataset = dir_path + '/ORF.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/CodingClass.py', '-i',
-                            fasta_files[seq_class], '-o', dataset, '-l', seq_class],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
+                subprocess.run(['python', 'MathFeature/methods/CodingClass.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
 
-        if "Fickett Score" in descriptors:
-            dataset = dir_path + '/Fickett.csv'
+            if "Fickett Score" in descriptors:
+                dataset = dir_path + '/Fickett.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/FickettScore.py', '-i',
-                            fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                            '-seq', '1'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
+                subprocess.run(['python', 'MathFeature/methods/FickettScore.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-seq', '1'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
 
-        if "Graphs" in descriptors:
-            dataset = dir_path + '/ComplexNetworks.csv'
+            if "Graphs" in descriptors:
+                dataset = dir_path + '/ComplexNetworks.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/ComplexNetworksClass-v2.py', '-i', 
-                            fasta_files[seq_class], '-o', dataset, '-l', seq_class, 
-                            '-k', '3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
+                subprocess.run(['python', 'MathFeature/methods/ComplexNetworksClass-v2.py', '-i', 
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class, 
+                                '-k', '3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
 
-        if "Shannon entropy" in descriptors:
-            dataset = dir_path + '/Shannon.csv'
+            if "Shannon entropy" in descriptors:
+                dataset = dir_path + '/Shannon.csv'
 
-            subprocess.run(['python', 'MathFeature/methods/EntropyClass.py', '-i',
-                            fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                            '-k', '5', '-e', 'Shannon'],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
+                subprocess.run(['python', 'MathFeature/methods/EntropyClass.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-k', '5', '-e', 'Shannon'],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
 
-        if "Tsallis entropy" in descriptors:
-            dataset = dir_path + '/Tsallis.csv'
+            if "Tsallis entropy" in descriptors:
+                dataset = dir_path + '/Tsallis.csv'
 
-            subprocess.run(['python', 'other-methods/TsallisEntropy.py', '-i',
-                            fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                            '-k', '5', '-q', '2.3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            datasets.append(dataset)
-        
+                subprocess.run(['python', 'other-methods/TsallisEntropy.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-k', '5', '-q', '2.3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
+        else:
+            if "Amino acid composition (AAC)" in descriptors:
+                dataset = dir_path + '/AAC.csv'
+                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques-Protein.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-t', 'AAC'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
+
+            if "Dipeptide composition (DPC)" in descriptors:
+                dataset = dir_path + '/DPC.csv'
+                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques-Protein.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-t', 'DPC'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
+
+            if "Graphs" in descriptors:
+                dataset = dir_path + '/ComplexNetworks.csv'
+                subprocess.run(['python', 'MathFeature/methods/ComplexNetworksClass-v2.py', '-i',
+                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-k', '3'], stdout=subprocess.DEVNULL,
+                                stderr=subprocess.STDOUT)
+                datasets.append(dataset)
+                                
+            if "Shannon entropy" in descriptors:
+                dataset = dir_path + '/Shannon.csv'
+                subprocess.run(['python', 'MathFeature/methods/EntropyClass.py',
+                                '-i', fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-k', '5', '-e', 'Shannon'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
+
+            if "Tsallis entropy" in descriptors:
+                dataset = dir_path + '/Tsallis.csv'
+                subprocess.run(['python', 'other-methods/TsallisEntropy.py',
+                                '-i', fasta_files[seq_class], '-o', dataset, '-l', seq_class,
+                                '-k', '5', '-q', '2.3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                datasets.append(dataset)
+
     if datasets:
         dataframes = pd.concat([pd.read_csv(f) for f in datasets], axis=1)
         dataframes = dataframes.loc[:, ~dataframes.columns.duplicated()]
@@ -307,13 +344,19 @@ def load(files, seq_type):
 
     with col1:
         with st.form("my_form"):
-            descriptors = st.multiselect("Select descriptors for feature engineering of sequences provided:", 
-                                        ["Nucleotide acid composition (NAC)", 
-                                            "Dinucleotide composition (DNC)", 
-                                            "Trinucleotide composition (TNC)", 
-                                            "Xmer k-Spaced Ymer composition frequency (kGap)", 
-                                            "Open Reading Frame (ORF)", "Fickett Score",
-                                            "Graphs", "Shannon entropy", "Tsallis entropy"])
+            if seq_type == "DNA/RNA":
+                descriptors = st.multiselect("Select descriptors for feature engineering of DNA/RNA sequences provided:", 
+                                            ["Nucleotide acid composition (NAC)", 
+                                                "Dinucleotide composition (DNC)", 
+                                                "Trinucleotide composition (TNC)", 
+                                                "Xmer k-Spaced Ymer composition frequency (kGap)", 
+                                                "Open Reading Frame (ORF)", "Fickett Score",
+                                                "Graphs", "Shannon entropy", "Tsallis entropy"])
+            else:
+                descriptors = st.multiselect("Select descriptors for feature engineering of protein sequences provided:", 
+                                            ["Amino acid composition (AAC)", 
+                                                "Dipeptide composition (DPC)", 
+                                                "Graphs", "Shannon entropy", "Tsallis entropy"])
             scaling = st.selectbox("Select scaling method", ["StandardScaler", "MinMaxScaler"])
 
             submitted = st.form_submit_button("Submit")
@@ -321,7 +364,7 @@ def load(files, seq_type):
     with col2:
         if submitted:
             with st.spinner('Loading...'):
-                features = feature_extraction(files, descriptors)
+                features = feature_extraction(files, descriptors, seq_type)
 
                 match scaling:
                     case "StandardScaler":
@@ -339,7 +382,6 @@ def load(files, seq_type):
             data_shape = st.session_state['data'][0].shape
             st.markdown(f"{data_shape[0]} sequences with {data_shape[1]} features were generated from the descriptors. Preview of concatenated features from descriptors before scaling:")
             st.dataframe(st.session_state['data'][0])
-
 
     if 'data' in st.session_state:
         tab1, tab2, tab3, tab4 = st.tabs(["Feature Distribution", "Dimensionality Reduction", "Feature Correlation", "Feature Importance"])
