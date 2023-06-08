@@ -463,7 +463,7 @@ def load(files, seq_type):
 
     st.table(df)
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(['Sequence statistics', 'Sequence alignment', 'k-mer distribution', f'{str_type[seq_type][1]} distribution', 'Structure visualization'])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(['Sequence Statistics', 'Sequence Alignment', 'k-mer Distribution', f'{str_type[seq_type][1]} Distribution', 'Structure Visualization'])
 
     with tab1:
         df = seq_stats(seqs, seq_type)
@@ -489,6 +489,3 @@ def load(files, seq_type):
     
     with tab5:
         structure_visualization(seqs, seq_type)
-
-if __name__ == '__main__':
-    runUI()

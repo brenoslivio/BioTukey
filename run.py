@@ -6,14 +6,18 @@ import os, shutil
 
 def runUI():
     st.set_page_config(page_title = "BioTukey", initial_sidebar_state = "expanded", page_icon = 'imgs/biotukey_icon.png', layout="wide")
-
+    
     utils.inject_css()
 
     home_dir = os.path.expanduser('~')
     dir_path = os.path.join(home_dir, '.biotukey')
 
-    shutil.rmtree(dir_path, ignore_errors=True)
-
+    try:
+        shutil.rmtree(dir_path)
+    except OSError as e:
+        print("Error: %s - %s." % (e.filename, e.strerror))
+        print('Creating Directory...')
+    
     os.makedirs(dir_path, exist_ok=True)
 
     for _ in range(10):
@@ -58,7 +62,6 @@ def runUI():
                     files, seq_type = utils.processing.load_study(study_example)
 
     if (option == "Manual" and uploaded_files and files) or (option == "Example" and study_example and files):
-
         if page == "Overview":
             if option == "Example":
                 match study_example:
@@ -72,16 +75,15 @@ def runUI():
                                 bbac218, https://doi.org/10.1093/bib/bbac218")
                     case "secreted proteins":
                         st.info("**Dataset from the following published paper:** \
-                                 Yanju Zhang, Sha Yu, Ruopeng Xie, Jiahui Li, André Leier, Tatiana T Marquez-Lago, \
+                                    Yanju Zhang, Sha Yu, Ruopeng Xie, Jiahui Li, André Leier, Tatiana T Marquez-Lago, \
                                 Tatsuya Akutsu, A Ian Smith, Zongyuan Ge, Jiawei Wang, Trevor Lithgow, Jiangning Song, \
                                 PeNGaRoo, a combined gradient boosting and ensemble learning framework for predicting \
                                 non-classical secreted proteins, Bioinformatics, Volume 36, \
                                 Issue 3, February 2020, Pages 704–712, \
                                 https://doi.org/10.1093/bioinformatics/btz629")
-                        
-            setup.overview.load(files, seq_type)
-            
-        #elif page == "Feature Engineering":
+                setup.overview.load(files, seq_type)
+        elif page == "Feature Engineering":
+            setup.feature_engineering.load(files, seq_type)
 
 if __name__ == '__main__':
     runUI()

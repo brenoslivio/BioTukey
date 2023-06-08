@@ -3,9 +3,7 @@ import os
 import re
 from Bio import SeqIO
 
-
-def process_files(uploaded_files, type_selection):
-
+def process_files(uploaded_files, seq_type):
     home_dir = os.path.expanduser('~')
     dir_path = os.path.join(home_dir, '.biotukey')
 
@@ -29,25 +27,24 @@ def process_files(uploaded_files, type_selection):
         with open(pre_file, mode='a') as f:
             for record in SeqIO.parse(files[seq_class], 'fasta'):
 
-                if type_selection == "DNA/RNA":
+                if seq_type == "DNA/RNA":
                     if alphabets['aa_exclusive'].search(str(record.seq)) is not None:
                         st.error("Inconsistent sequence file.")
-                        return False, False
+                        return [], ""
                     if alphabets['nt'].search(str(record.seq)) is not None:
                         f.write(f">{record.id}\n")
                         f.write(f"{record.seq}\n")
                 else: 
                     if alphabets['aa_exclusive'].search(str(record.seq)) is None:
                         st.error("Inconsistent sequence file.")
-                        return False, False
+                        return [], ""
                     if alphabets['aa'].search(str(record.seq)) is not None:
                         f.write(f">{record.id}\n")
                         f.write(f"{record.seq}\n")
 
-
         files[seq_class] = pre_file
             
-    return files, type_selection
+    return files, seq_type
 
 def load_study(study):
     files = {}
