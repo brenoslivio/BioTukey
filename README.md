@@ -1,2 +1,3 @@
-# RNAseq-AnalysisTool
-Web app for classification and analysis of RNA sequences.
+# BioTukey
+
+Comprehensive toolkit for interactive data analysis, engineering, and classification of biological sequences.

@@ -4,6 +4,10 @@ import pandas as pd
 import utils, setup
 import os, shutil
 
+def clear_session():
+    if 'test' in st.session_state:
+        del st.session_state['test']
+
 def runUI():
     st.set_page_config(page_title = "BioTukey", initial_sidebar_state = "expanded", page_icon = 'imgs/biotukey_icon.png', layout="wide")
     
@@ -59,12 +63,14 @@ def runUI():
                 if not uploaded_files:
                     st.sidebar.warning("Please select files.")
                 else:
+                    clear_session()
                     st.sidebar.success("Files submitted with success.")
                     files, seq_type = utils.processing.process_files(uploaded_files, type_selection, True)
             case "Example":
                 if not study_example:
                     st.sidebar.warning("Please select study example.")
                 else:
+                    clear_session()
                     st.sidebar.success("Example submitted with success.")
                     files, seq_type = utils.processing.load_study(study_example, True)
 
