@@ -12,13 +12,20 @@ def runUI():
     home_dir = os.path.expanduser('~')
     dir_path = os.path.join(home_dir, '.biotukey')
 
-    try:
-        shutil.rmtree(dir_path)
-    except OSError as e:
-        print("Error: %s - %s." % (e.filename, e.strerror))
-        print('Creating Directory...')
+    if 'biotukey_dir' not in st.session_state:
+        try:
+            shutil.rmtree(dir_path)
+        except OSError as e:
+            print("Error: %s - %s." % (e.filename, e.strerror))
+            print('Creating Directory...')
     
-    os.makedirs(dir_path, exist_ok=True)
+        os.makedirs(dir_path, exist_ok=True)
+        os.makedirs(os.path.join(dir_path, 'train'), exist_ok=True)
+        os.makedirs(os.path.join(dir_path, 'test'), exist_ok=True)
+        os.makedirs(os.path.join(dir_path, 'feat_engineering/train'), exist_ok=True)
+        os.makedirs(os.path.join(dir_path, 'feat_engineering/test'), exist_ok=True)
+
+        st.session_state['biotukey_dir'] = True
 
     for _ in range(10):
         st.sidebar.markdown("")
@@ -53,13 +60,13 @@ def runUI():
                     st.sidebar.warning("Please select files.")
                 else:
                     st.sidebar.success("Files submitted with success.")
-                    files, seq_type = utils.processing.process_files(uploaded_files, type_selection)
+                    files, seq_type = utils.processing.process_files(uploaded_files, type_selection, True)
             case "Example":
                 if not study_example:
                     st.sidebar.warning("Please select study example.")
                 else:
                     st.sidebar.success("Example submitted with success.")
-                    files, seq_type = utils.processing.load_study(study_example)
+                    files, seq_type = utils.processing.load_study(study_example, True)
 
     if (option == "Manual" and uploaded_files and files) or (option == "Example" and study_example and files):
         if page == "Overview":
@@ -81,11 +88,11 @@ def runUI():
                                 non-classical secreted proteins, Bioinformatics, Volume 36, \
                                 Issue 3, February 2020, Pages 704–712, \
                                 https://doi.org/10.1093/bioinformatics/btz629")
-                setup.overview.load(files, seq_type)
+            setup.overview.load(files, seq_type)
         elif page == "Feature Engineering":
             setup.feature_engineering.load(files, seq_type)
         elif page == "Classification":
-            setup.classification.load(seq_type)
+            setup.classification.load(seq_type, option, study_example)
 
 if __name__ == '__main__':
     runUI()

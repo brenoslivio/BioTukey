@@ -1,11 +1,20 @@
 import streamlit as st
-import os
+import os, shutil
 import re
+import glob
 from Bio import SeqIO
 
-def process_files(uploaded_files, seq_type):
+def process_files(uploaded_files, seq_type, train):
     home_dir = os.path.expanduser('~')
-    dir_path = os.path.join(home_dir, '.biotukey')
+    
+    if train:
+        dir_path = os.path.join(home_dir, '.biotukey/train')
+    else:
+        dir_path = os.path.join(home_dir, '.biotukey/test')
+
+    files = glob.glob(dir_path + "/*")
+    for f in files:
+        os.remove(f)
 
     for file in uploaded_files:
         save_path = os.path.join(dir_path, file.name)
@@ -15,10 +24,10 @@ def process_files(uploaded_files, seq_type):
     dir_path += '/'
 
     files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
-
+    
     alphabets = {'nt': re.compile('^[acgtu]*$', re.I), 
                 'aa': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I),
-                'aa_exclusive': re.compile('[defhiklmpqrsvwy]', re.I)} 
+                'aa_exclusive': re.compile('[defhiklmpqrsvwy]', re.I)}
 
     for seq_class in files:
 
@@ -46,17 +55,23 @@ def process_files(uploaded_files, seq_type):
             
     return files, seq_type
 
-def load_study(study):
+def load_study(study, train):
     files = {}
     seq_type = ''
 
     match study:
         case "ncRNAs":
-            dir_path = "examples/example1/train/"
+            if train:
+                dir_path = "examples/example1/train/"
+            else:
+                dir_path = "examples/example1/test/"
             files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
             seq_type = "DNA/RNA"
         case "secreted proteins":
-            dir_path = "examples/example2/train/"
+            if train:
+                dir_path = "examples/example2/train/"
+            else:
+                dir_path = "examples/example2/test/"
             files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
             seq_type = "Protein"
 

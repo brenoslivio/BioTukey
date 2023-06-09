@@ -187,7 +187,7 @@ def load(files, seq_type):
     col1, col2 = st.columns(2)
 
     with col1:
-        with st.form("my_form"):
+        with st.form("feature_extraction"):
             if seq_type == "DNA/RNA":
                 descriptors = st.multiselect("Select descriptors for feature engineering of DNA/RNA sequences provided:", 
                                             ["Nucleotide acid composition (NAC)", 
@@ -208,7 +208,7 @@ def load(files, seq_type):
     with col2:
         if submitted:
             with st.spinner('Loading...'):
-                features = utils.feature_extraction(files, descriptors, seq_type)
+                features = utils.feature_extraction(files, descriptors, seq_type, True)
 
                 match scaling:
                     case "StandardScaler":

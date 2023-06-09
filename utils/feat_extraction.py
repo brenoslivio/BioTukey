@@ -1,17 +1,18 @@
 import subprocess, os, shutil
 import pandas as pd
+import glob
 
-def feature_extraction(fasta_files, descriptors, seq_type):
+def feature_extraction(fasta_files, descriptors, seq_type, train):
     home_dir = os.path.expanduser('~')
-    dir_path = os.path.join(home_dir, '.biotukey/feat_engineering/train')
 
-    try:
-        shutil.rmtree('.biotukey/feat_engineering')
-    except OSError as e:
-        print("Error: %s - %s." % (e.filename, e.strerror))
-        print('Creating Directory...')
+    if train:
+        dir_path = os.path.join(home_dir, '.biotukey/feat_engineering/train')
+    else:
+        dir_path = os.path.join(home_dir, '.biotukey/feat_engineering/test')
 
-    os.makedirs(dir_path, exist_ok=True)
+    files = glob.glob(dir_path + "/*")
+    for f in files:
+        os.remove(f)
 
     features = pd.DataFrame()
 

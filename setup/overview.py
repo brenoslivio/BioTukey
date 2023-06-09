@@ -428,7 +428,7 @@ def structure_visualization(seqs, seq_type):
 
 def load(files, seq_type):
     seqs = {}
-    
+
     for seq_class in files:
         seq = utils.Seq(files[seq_class], seq_class, seq_type)
         seqs[seq_class] = seq
