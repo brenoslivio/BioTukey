@@ -4,165 +4,16 @@ import os, shutil
 import numpy as np
 import subprocess
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.manifold import TSNE
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import mutual_info_classif, RFE
 from functools import partial
 import plotly.figure_factory as ff
 from umap import UMAP
+from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import plotly.graph_objects as go
 import plotly.express as px
 import utils
-
-def feature_extraction(fasta_files, descriptors, seq_type):
-    home_dir = os.path.expanduser('~')
-    dir_path = os.path.join(home_dir, '.biotukey/feat_engineering/train')
-
-    try:
-        shutil.rmtree('.biotukey/feat_engineering')
-    except OSError as e:
-        print("Error: %s - %s." % (e.filename, e.strerror))
-        print('Creating Directory...')
-
-    os.makedirs(dir_path, exist_ok=True)
-
-    features = pd.DataFrame()
-
-    for seq_class in fasta_files:
-        datasets = []
-
-        if seq_type == "DNA/RNA":
-            if "Nucleotide acid composition (NAC)" in descriptors:
-                dataset = dir_path + '/NAC.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py',
-                                '-i', fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-t', 'NAC', '-seq', '1'], 
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Dinucleotide composition (DNC)" in descriptors:
-                dataset = dir_path + '/DNC.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-t', 'DNC', '-seq', '1'], 
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Trinucleotide composition (TNC)" in descriptors:
-                dataset = dir_path + '/TNC.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-t', 'TNC', '-seq', '1'], 
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Xmer k-Spaced Ymer composition frequency (kGap)" in descriptors:
-                dataset_di = dir_path + '/kGap_di.csv'
-                dataset_tri = dir_path + '/kGap_tri.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/Kgap.py', '-i',
-                                fasta_files[seq_class], '-o', dataset_di, '-l',
-                                seq_class, '-k', '1', '-bef', '1',
-                                '-aft', '2', '-seq', '1'],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-
-                subprocess.run(['python', 'MathFeature/methods/Kgap.py', '-i',
-                                fasta_files[seq_class], '-o', dataset_tri, '-l',
-                                seq_class, '-k', '1', '-bef', '1',
-                                '-aft', '3', '-seq', '1'],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset_di)
-                datasets.append(dataset_tri)
-
-            if "Open Reading Frame (ORF)" in descriptors:
-                dataset = dir_path + '/ORF.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/CodingClass.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Fickett Score" in descriptors:
-                dataset = dir_path + '/Fickett.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/FickettScore.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-seq', '1'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Graphs" in descriptors:
-                dataset = dir_path + '/ComplexNetworks.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/ComplexNetworksClass-v2.py', '-i', 
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class, 
-                                '-k', '3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Shannon entropy" in descriptors:
-                dataset = dir_path + '/Shannon.csv'
-
-                subprocess.run(['python', 'MathFeature/methods/EntropyClass.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-k', '5', '-e', 'Shannon'],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Tsallis entropy" in descriptors:
-                dataset = dir_path + '/Tsallis.csv'
-
-                subprocess.run(['python', 'other-methods/TsallisEntropy.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-k', '5', '-q', '2.3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-        else:
-            if "Amino acid composition (AAC)" in descriptors:
-                dataset = dir_path + '/AAC.csv'
-                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques-Protein.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-t', 'AAC'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Dipeptide composition (DPC)" in descriptors:
-                dataset = dir_path + '/DPC.csv'
-                subprocess.run(['python', 'MathFeature/methods/ExtractionTechniques-Protein.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-t', 'DPC'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Graphs" in descriptors:
-                dataset = dir_path + '/ComplexNetworks.csv'
-                subprocess.run(['python', 'MathFeature/methods/ComplexNetworksClass-v2.py', '-i',
-                                fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-k', '3'], stdout=subprocess.DEVNULL,
-                                stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-                                
-            if "Shannon entropy" in descriptors:
-                dataset = dir_path + '/Shannon.csv'
-                subprocess.run(['python', 'MathFeature/methods/EntropyClass.py',
-                                '-i', fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-k', '5', '-e', 'Shannon'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-            if "Tsallis entropy" in descriptors:
-                dataset = dir_path + '/Tsallis.csv'
-                subprocess.run(['python', 'other-methods/TsallisEntropy.py',
-                                '-i', fasta_files[seq_class], '-o', dataset, '-l', seq_class,
-                                '-k', '5', '-q', '2.3'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                datasets.append(dataset)
-
-    if datasets:
-        dataframes = pd.concat([pd.read_csv(f) for f in datasets], axis=1)
-        dataframes = dataframes.loc[:, ~dataframes.columns.duplicated()]
-        dataframes = dataframes[~dataframes.nameseq.str.contains("nameseq")]
-
-    features = dataframes.reset_index(drop=True)
-
-    return features
 
 def dimensionality_reduction(scaled_data, labels, nameseqs):
     dim_col1, dim_col2 = st.columns(2)
@@ -261,16 +112,9 @@ def feature_correlation(features):
         st.plotly_chart(fig, use_container_width=True)
 
 def feature_importance(features, colnames, labels):
-    feature_selection_method = st.selectbox("Select feature selection method", ["Mutual Information", "Recursive Feature Elimination"])
 
     with st.spinner('Loading...'):
-        if feature_selection_method == "Mutual Information":
-            scores = partial(mutual_info_classif, random_state=0)(features, labels)
-        else:
-            model = RandomForestClassifier(random_state=0) 
-            rfe = RFE(model)
-            rfe.fit(features, labels)
-            scores = rfe.ranking_
+        scores = partial(mutual_info_classif, random_state=0)(features, labels)
 
         # Sort features by importance
         sorted_indices = np.argsort(scores)
@@ -284,7 +128,7 @@ def feature_importance(features, colnames, labels):
             hovertemplate='Feature: %{x}<br>Importance: %{y}<extra></extra>'
         ))
         fig.update_layout(
-            title="Feature Importance",
+            title="Feature Importance using Mutual Information",
             xaxis_title="Features",
             yaxis_title="Importance",
         )
@@ -364,7 +208,7 @@ def load(files, seq_type):
     with col2:
         if submitted:
             with st.spinner('Loading...'):
-                features = feature_extraction(files, descriptors, seq_type)
+                features = utils.feature_extraction(files, descriptors, seq_type)
 
                 match scaling:
                     case "StandardScaler":
@@ -376,7 +220,7 @@ def load(files, seq_type):
                 labels = features.pop("label")
                 scaled_data = scaler.fit_transform(features)
 
-                st.session_state['data'] = [features, scaled_data, labels, nameseqs]
+                st.session_state['data'] = [features, scaled_data, labels, nameseqs, descriptors, scaling]
                 
         if 'data' in st.session_state:
             data_shape = st.session_state['data'][0].shape

@@ -84,6 +84,8 @@ def runUI():
                 setup.overview.load(files, seq_type)
         elif page == "Feature Engineering":
             setup.feature_engineering.load(files, seq_type)
+        elif page == "Classification":
+            setup.classification.load(seq_type)
 
 if __name__ == '__main__':
     runUI()

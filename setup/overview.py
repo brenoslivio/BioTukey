@@ -49,7 +49,7 @@ def seq_alignment(seqs, seq_type):
         df_seq['list_name'] = seq_class + ' - ' + df_seq['name']
         df_sequences = pd.concat([df_sequences, df_seq]).reset_index(drop=True)
 
-    seq_select = st.multiselect("Select sequences to view alignment:", df_sequences['list_name'], default =df_sequences['list_name'][0])
+    seq_select = st.multiselect("Select sequences to view alignment:", df_sequences['list_name'])
 
     if seq_type == "DNA/RNA":
         chars = ['A', 'C', 'G', 'T']
