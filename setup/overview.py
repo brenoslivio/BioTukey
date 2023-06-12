@@ -79,7 +79,7 @@ def seq_alignment(seqs, seq_type):
 
             seqs_num = [[char_colors[N] for N in msa_seq] for msa_seq in msa_seqs]
 
-            colorscale = [[char_colors[ch_color], utils.tol_palette()[i]] for i, ch_color in enumerate(char_colors)]
+            colorscale = [[char_colors[ch_color], utils.get_colors(len(char_colors))[i]] for i, ch_color in enumerate(char_colors)]
             colorscale[-1] = [1, 'white']
             
             fig = make_subplots(rows=2, shared_xaxes=True, vertical_spacing=0.065, row_heights=[0.2, 0.8])
@@ -95,7 +95,7 @@ def seq_alignment(seqs, seq_type):
 
             df = pd.DataFrame(df_dict)
 
-            colors = {char: utils.tol_palette()[i] for i, char in enumerate(chars)}
+            colors = {char: utils.get_colors(len(chars))[i] for i, char in enumerate(chars)}
 
             data = []
             
@@ -157,7 +157,7 @@ def kmer_general_stats(k, seqs, seq_type):
             avgs_df = pd.concat([avgs_df, avg_df], axis = 1)
             kmers_df = pd.concat([kmers_df, kmer_df]).reset_index(drop=True)
 
-        fig = px.bar(avgs_df, barmode='group', color_discrete_sequence = utils.tol_palette(),
+        fig = px.bar(avgs_df, barmode='group', color_discrete_sequence = utils.get_colors(len(seqs)),
                         labels={
                             "index": "k-mer",
                             "value": "Average proportion"
@@ -218,11 +218,11 @@ def char_distribution(seqs, seq_type):
         for N in chars:
             df_plot[N] = df_plot['seq'].apply(lambda x : x.count(N) / len(x))
             if plot == "Boxplot":
-                figures[N] = px.box(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_palette())
+                figures[N] = px.box(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.get_colors(len(seqs)))
             elif plot == "Violin plot":
-                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.tol_palette())
+                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, color_discrete_sequence=utils.get_colors(len(seqs)))
             else:
-                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, box=True, color_discrete_sequence=utils.tol_palette())
+                figures[N] = px.violin(df_plot, x="class", y=N, color="class", hover_data="name", points=points, box=True, color_discrete_sequence=utils.get_colors(len(seqs)))
 
         figures_traces = collections.defaultdict(list)
 

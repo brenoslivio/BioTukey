@@ -1,3 +1,4 @@
+import plotly.express as px
 
 def tol_palette():
     colors = ['rgb(120, 28, 129)', 'rgb(82, 27, 128)', 'rgb(68, 47, 139)', 'rgb(63, 76, 159)', 'rgb(64, 105, 180)',
@@ -6,3 +7,10 @@ def tol_palette():
               'rgb(226, 158, 55)', 'rgb(231, 134, 50)', 'rgb(230, 103, 45)', 'rgb(225, 68, 39)', 'rgb(217, 33, 32)', 'white']
     
     return colors
+
+def get_colors(size):
+
+    if size <= 8:
+        return px.colors.qualitative.Dark2
+    
+    return tol_palette()

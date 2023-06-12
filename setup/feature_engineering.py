@@ -4,8 +4,7 @@ import os, shutil
 import numpy as np
 import subprocess
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import mutual_info_classif, RFE
+from sklearn.feature_selection import mutual_info_classif
 from functools import partial
 import plotly.figure_factory as ff
 from umap import UMAP
@@ -28,11 +27,11 @@ def dimensionality_reduction(scaled_data, labels, nameseqs):
             perplexity = st.slider("Perplexity", min_value=5, max_value=50, value=30)
             learning_rate = st.slider("Learning rate", min_value=10, max_value=1000, value=200)
             n_iter = st.slider("Number of iterations", min_value=100, max_value=10000, value=1000)
-            reducer = TSNE(n_components=3, perplexity=perplexity, learning_rate=learning_rate, n_iter=n_iter)
+            reducer = TSNE(n_components=3, perplexity=perplexity, learning_rate=learning_rate, n_iter=n_iter, random_state=0)
         elif reduction == "Uniform Manifold Approximation and Projection (UMAP)":
             n_neighbors = st.slider("Number of neighbors", min_value=2, max_value=100, value=15)
             min_dist = st.slider("Minimum distance", min_value=0.0, max_value=1.0, value=0.1)
-            reducer = UMAP(n_components=3, n_neighbors=n_neighbors, min_dist=min_dist)
+            reducer = UMAP(n_components=3, n_neighbors=n_neighbors, min_dist=min_dist, random_state=0)
         else:
             # No additional parameters for PCA
             reducer = PCA(n_components=3)
@@ -56,7 +55,7 @@ def dimensionality_reduction(scaled_data, labels, nameseqs):
                         mode='markers',
                         name=f'{label}',
                         marker=dict(
-                            color=px.colors.qualitative.Dark2[i], size=3,
+                            color=utils.get_colors(len(np.unique(labels)))[i], size=3,
                         ),
                         hovertemplate=names[label],
                         textposition='top center',
@@ -144,10 +143,10 @@ def feature_distribution(features, labels, nameseqs):
 
     # Get unique labels and assign colors
     unique_labels = labels.unique()
-    color_map = px.colors.qualitative.Dark2[:len(unique_labels)]
+    color_map = utils.get_colors(len(unique_labels))[:len(unique_labels)]
 
     with col2:
-        num_bins = st.slider("Number of Bins", min_value=5, max_value=50, value=30)
+        num_bins = st.slider("Number of bins", min_value=5, max_value=50, value=30)
 
     with st.spinner('Loading...'):
         fig_data = []
@@ -208,7 +207,7 @@ def load(files, seq_type):
     with col2:
         if submitted:
             with st.spinner('Loading...'):
-                features = utils.feature_extraction(files, descriptors, seq_type, True)
+                features = utils.feature_extraction(files, descriptors, seq_type, False)
 
                 match scaling:
                     case "StandardScaler":
@@ -227,9 +226,9 @@ def load(files, seq_type):
             st.markdown(f"{data_shape[0]} sequences with {data_shape[1]} features were generated from the descriptors. Preview of concatenated features from descriptors before scaling:")
             st.dataframe(st.session_state['data'][0])
 
-    if 'data' in st.session_state:
-        tab1, tab2, tab3, tab4 = st.tabs(["Feature Distribution", "Dimensionality Reduction", "Feature Correlation", "Feature Importance"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Feature Distribution", "Dimensionality Reduction", "Feature Correlation", "Feature Importance"])
 
+    if 'data' in st.session_state:
         with tab1:
             feature_distribution(st.session_state['data'][0], st.session_state['data'][2], st.session_state['data'][3])
 

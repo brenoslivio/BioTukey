@@ -99,16 +99,16 @@ def manual_model_selection(model_selection, test):
             with metric_col2:
                 st.markdown("**Accuracy**")
                 scores = cross_val_score(pipeline, X_train, y_train, cv=10, scoring='accuracy', n_jobs=-1)
-                st.write("Mean cross-validation accuracy score:", scores.mean(), "+-", scores.std())
+                st.write("Average cross-validation accuracy score:", scores.mean(), "+-", scores.std())
                 st.markdown("**Precision**")
                 scores = cross_val_score(pipeline, X_train, y_train, cv=10, scoring='precision_weighted', n_jobs=-1)
-                st.write("Mean cross-validation weighted precision score:", scores.mean(), "+-", scores.std())
-                st.markdown("**F1-score**")
+                st.write("Average cross-validation weighted precision score:", scores.mean(), "+-", scores.std())
+                st.markdown("**Recall**")
                 scores = cross_val_score(pipeline, X_train, y_train, cv=10, scoring='recall_weighted', n_jobs=-1)
-                st.write("Mean cross-validation weighted recall score:", scores.mean(), "+-", scores.std())
+                st.write("Average cross-validation weighted recall score:", scores.mean(), "+-", scores.std())
                 st.markdown("**F1-score**")
                 scores = cross_val_score(pipeline, X_train, y_train, cv=10, scoring='f1_weighted', n_jobs=-1)
-                st.write("Mean cross-validation weighted F1-score score:", scores.mean(), "+-", scores.std())
+                st.write("Average cross-validation weighted F1-score score:", scores.mean(), "+-", scores.std())
 
             if test:
                 st.markdown("---")
@@ -139,7 +139,7 @@ def manual_model_selection(model_selection, test):
                 z=confusion_matrix(le.inverse_transform(y_train), le.inverse_transform(y_pred_cv)),
                 x=le.classes_,
                 y=le.classes_,
-                colorscale='Blues',
+                colorscale='Purples',
                 colorbar=dict(title='Counts')
             ))
 
@@ -169,7 +169,7 @@ def manual_model_selection(model_selection, test):
                         z=confusion_matrix(le.inverse_transform(y_test), le.inverse_transform(y_pred)),
                         x=le.classes_,
                         y=le.classes_,
-                        colorscale='Blues',
+                        colorscale='Purples',
                         colorbar=dict(title='Counts')
                     ))
 
@@ -186,18 +186,19 @@ def manual_model_selection(model_selection, test):
                     st.warning("Submit your test sets.")
 
 def load(seq_type, option, study_example):
+    col1, col2 = st.columns(2)
+
+    tab1, tab2 = st.tabs(['Manual Model', 'AutoML'])
+
     if 'data' not in st.session_state:
         st.warning("Please select and submit descriptors to use for classification within the Feature Engineering module.")
     else:
-        col1, col2 = st.columns(2)
-
+        
         with col1:
             model_selection = st.selectbox("Select a model:", ['Random Forest', 'XGBoost'])
 
         with col2:
             evaluation_selection = st.selectbox("Select an evaluation method:", ['10-fold cross-validation', '10-fold cross-validation and test set'])
-
-        tab1, tab2 = st.tabs(['Manual Model', 'AutoML'])
 
         if evaluation_selection == '10-fold cross-validation':
             with tab1:
