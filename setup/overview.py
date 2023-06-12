@@ -432,7 +432,7 @@ def load(files, seq_type):
     for seq_class in files:
         seq = utils.Seq(files[seq_class], seq_class, seq_type)
         seqs[seq_class] = seq
-
+    
     st.markdown(f"Data set provided has {str(len(seqs))} {seq_type} class(es): {', '.join(seqs)}; \
                 with {sum([len(seqs[seq_class]) for seq_class in seqs])} sequences in total. " \
             + 'Summary statistics for the sequences by class:')

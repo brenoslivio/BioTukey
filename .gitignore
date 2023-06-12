@@ -1,6 +1,5 @@
 # Python
 __pycache__
-result
 
 # VS Code
 .vscode/
@@ -9,3 +8,7 @@ result
 
 lib/
 tmp/
+
+# ML
+result
+catboost_info

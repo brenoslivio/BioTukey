@@ -98,7 +98,7 @@ def runUI():
         elif page == "Feature Engineering":
             setup.feature_engineering.load(files, seq_type)
         elif page == "Classification":
-            setup.classification.load(seq_type, option, study_example)
+            setup.classification.load(files, seq_type, option, study_example)
 
 if __name__ == '__main__':
     runUI()

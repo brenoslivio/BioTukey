@@ -14,77 +14,179 @@ from sklearn.decomposition import PCA
 import plotly.graph_objects as go
 import xgboost as xgb
 import pandas as pd
+import subprocess
+import os
 
-def automl():
+def automl(files, test, seq_type):
     tab1, tab2, tab3 = st.tabs(['Performance Scoring', 'Confusion Matrix', 'Feature Importance'])
 
-    with tab1:
-        col1, col2 = st.columns(2)
+    with st.spinner('Running BioAutoML...'):
+        command = [
+            'python',
+            'utils/BioAutoML-feature.py' if seq_type == 'DNA/RNA' else 'utils/BioAutoML-feature-protein.py',
+            '--fasta_train',
+            '--fasta_label_train',
+            '--n_cpu',
+            '-1',
+            '--output',
+            'result'
+        ]
 
-        with col1:
+        # training files
+        index = 3
+        for seq_class in files:
+            command.insert(index, files[seq_class])
+
+            index += 1
+
+        index += 1
+        for seq_class in files:
+            command.insert(index, seq_class)
+
+            index += 1
+
+        if test: # test files
+            command.insert(index, '--fasta_test')
+            index += 1
+            for seq_class in test:
+                command.insert(index, test[seq_class])
+
+                index += 1
+
+            command.insert(index, '--fasta_label_test')
+            index += 1
+            for seq_class in test:
+                command.insert(index, seq_class)
+
+                index += 1
+
+        subprocess.run(command)
+
+        with tab1:
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**Cross-validation**")
+                df_cv = pd.read_csv("result/training_kfold(10)_metrics.csv")
+
+                st.markdown("**Accuracy**")
+                st.markdown(f"Average cross-validation accuracy score: **{float(df_cv['ACC'].values):.4f} +- {float(df_cv['std_ACC'].values):.4f}**")
+
+                st.markdown("**F1-score**")
+
+                if (len(files) > 2):
+                    st.markdown(f"Average cross-validation weighted F1-score: **{float(df_cv['F1_w'].values):.4f} +- {float(df_cv['std_F1_w'].values):.4f}**")
+                else:
+                    st.markdown(f"Average cross-validation F1-score: **{float(df_cv['F1'].values):.4f} +- {float(df_cv['std_F1'].values):.4f}**")
+
+            with col2:
+                with open("result/trained_model.sav", "rb") as file:
+                    st.download_button(
+                        label="Download trained model",
+                        data=file,
+                        file_name='result/trained_model.sav',
+                        use_container_width=True
+                    )
+            
+            if test:
+                st.markdown("---")
+
+                st.markdown("**Test set**")
+
+                test_col1, test_col2 = st.columns(2)
+
+                with test_col1:
+                    st.markdown("Test set metrics:")
+
+                    if (len(files) > 2):
+                        df_report = pd.read_csv("result/metrics_test.csv").set_index("Unnamed: 0")
+                    else:
+                        df_report = pd.read_csv("result/metrics_test.csv", sep=": ").set_index("Metrics")
+                        df_report.columns = ["scores"]
+
+                    df_report.index.name = None
+                    st.dataframe(df_report, use_container_width=True)
+
+                with test_col2:
+                    df_prediction = pd.read_csv("result/test_predictions.csv", header=None)
+
+                    df_prediction.columns = ["nameseq", "predicted"]
+
+                    st.dataframe(df_prediction, use_container_width=True)
+
+        with tab2:
+            df = pd.read_csv('result/training_confusion_matrix.csv')
+
+            # Extract labels and confusion matrix values
+            labels = df.columns[1:-1].tolist()
+            
+            values = df.iloc[0:-1, 1:-1].values.tolist()
+
+            fig = go.Figure(data=go.Heatmap(
+                z=values,
+                x=labels,
+                y=labels,
+                colorscale='Purples'
+            ))
+
+            fig.update_layout(
+                title='Confusion Matrix',
+                xaxis_title='Predicted label',
+                yaxis_title='True label'
+            )
+
             st.markdown("**Cross-validation**")
-            df_cv = pd.read_csv("result_dna/training_kfold(10)_metrics.csv")
 
-            st.markdown("**Accuracy**")
-            st.markdown(f"Average cross-validation accuracy score: **{float(df_cv['ACC']):.4f} +- {float(df_cv['std_ACC']):.4f}**")
+            st.plotly_chart(fig, use_container_width=True)
 
-            st.markdown("**F1-score**")
-            st.markdown(f"Average cross-validation weighted F1-score score: **{float(df_cv['F1_w']):.4f} +- {float(df_cv['std_F1_w']):.4f}**")
+            if test:
+                st.markdown("---")
 
-        with col2:
-            with open("result_dna/trained_model.sav", "rb") as file:
-                st.download_button(
-                    label="Download trained model",
-                    data=file,
-                    file_name='result_dna/trained_model.sav',
-                    use_container_width=True
+                df = pd.read_csv('result/test_confusion_matrix.csv')
+
+                # Extract labels and confusion matrix values
+                labels = df.columns[1:-1].tolist()
+                
+                values = df.iloc[0:-1, 1:-1].values.tolist()
+
+                fig = go.Figure(data=go.Heatmap(
+                    z=values,
+                    x=labels,
+                    y=labels,
+                    colorscale='Purples'
+                ))
+
+                fig.update_layout(
+                    title='Confusion Matrix',
+                    xaxis_title='Predicted label',
+                    yaxis_title='True label'
                 )
 
-    with tab2:
-        df = pd.read_csv('result_dna/training_confusion_matrix.csv')
+                st.markdown("**Test set**")
 
-        # Extract labels and confusion matrix values
-        labels = df.columns[1:-1].tolist()
-        
-        values = df.iloc[0:-1, 1:-1].values.tolist()
+                st.plotly_chart(fig, use_container_width=True)
 
-        fig = go.Figure(data=go.Heatmap(
-            z=values,
-            x=labels,
-            y=labels,
-            colorscale='Purples'
-        ))
 
-        fig.update_layout(
-            title='Confusion Matrix',
-            xaxis_title='Predicted label',
-            yaxis_title='True label'
-        )
+        with tab3:
+            df = pd.read_csv('result/feature_importance.csv', sep=' ', header=None)
 
-        st.markdown("**Cross-validation**")
+            features = df[2].str.extract(r'\((.*?)\)')[0][::-1]
 
-        st.plotly_chart(fig, use_container_width=True)
+            score_importances = df[3].str.extract(r'\((.*?)\)')[0].values.astype(float)[::-1]
 
-    with tab3:
-        df = pd.read_csv('result_dna/feature_importance.csv', sep=' ', header=None)
+            fig = go.Figure(data=go.Bar(
+                x=features,
+                y=score_importances,
+                marker=dict(color=score_importances, colorscale='purples'),
+                hovertemplate='Feature: %{x}<br>Importance: %{y}<extra></extra>'
+            ))
+            fig.update_layout(
+                title="Feature Importance using BioAutoML",
+                xaxis_title="Features",
+                yaxis_title="Importance",
+            )
 
-        features = df[2].str.extract(r'\((.*?)\)')[0][::-1]
-
-        score_importances = df[3].str.extract(r'\((.*?)\)')[0].values.astype(float)[::-1]
-
-        fig = go.Figure(data=go.Bar(
-            x=features,
-            y=score_importances,
-            marker=dict(color=score_importances, colorscale='purples'),
-            hovertemplate='Feature: %{x}<br>Importance: %{y}<extra></extra>'
-        ))
-        fig.update_layout(
-            title="Feature Importance using BioAutoML",
-            xaxis_title="Features",
-            yaxis_title="Importance",
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
 
 
 def manual_model_selection(model_selection, test):
@@ -206,10 +308,10 @@ def manual_model_selection(model_selection, test):
                         nameseqs = st.session_state['test'][2]
 
                         # Concatenate variables column-wise
-                        df_concat = pd.concat([nameseqs, pd.Series(le.inverse_transform(y_test)), pd.Series(le.inverse_transform(y_pred))], axis=1)
+                        df_concat = pd.concat([nameseqs, pd.Series(le.inverse_transform(y_pred))], axis=1)
 
                         # Rename the columns
-                        df_concat.columns = ['nameseq', 'true', 'predicted']
+                        df_concat.columns = ["nameseq", "predicted"]
 
                         st.dataframe(df_concat, use_container_width=True)
 
@@ -272,7 +374,7 @@ def manual_model_selection(model_selection, test):
                 else:
                     st.warning("Submit your test sets.")
 
-def load(seq_type, option, study_example):
+def load(automl_files, seq_type, option, study_example):
     
     tab1, tab2 = st.tabs(['Manual Model', 'AutoML'])
 
@@ -290,10 +392,10 @@ def load(seq_type, option, study_example):
             with col2:
                 evaluation_selection = st.selectbox("Select an evaluation method:", ['10-fold cross-validation', '10-fold cross-validation and test set'])
 
-            if evaluation_selection == '10-fold cross-validation':
+            if evaluation_selection == '10-fold cross-validation': # only training
                 manual_model_selection(model_selection, False)
 
-            elif evaluation_selection == '10-fold cross-validation and test set':
+            else:
                 with st.spinner('Loading...'):
                     
                     if option == "Example":
@@ -324,8 +426,31 @@ def load(seq_type, option, study_example):
                     manual_model_selection(model_selection, True)
 
         with tab2:
-            automl()
+            with st.form("automl"):
+                evaluation_automl = st.selectbox("Select an evaluation method:", ['10-fold cross-validation', '10-fold cross-validation and test set'], key='automl')
 
+                submitted = st.form_submit_button("Run AutoML")
+
+            if submitted:
+                if evaluation_automl == '10-fold cross-validation': # only training
+                    automl(automl_files, None, seq_type)
+                else:
+                    if option == "Example":
+                        st.success("Test set loaded from study example successfully.")
+                        files, _ = utils.processing.load_study(study_example, False)
+                        automl(files, files, seq_type)
+                    else:
+                        uploaded_files = st.file_uploader("Submit test set files:", accept_multiple_files=True)
+                        for file in uploaded_files:
+                            save_path = os.path.join(dir_path, file.name)
+                            with open(save_path, mode='wb') as f:
+                                f.write(file.getvalue())
+
+                        dir_path += '/'
+
+                        files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
+                        
+                        print(files)
 
 
 
