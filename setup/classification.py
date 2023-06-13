@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 import xgboost as xgb
 import pandas as pd
 import subprocess
+import glob
 import os
 
 def automl(files, test, seq_type):
@@ -399,8 +400,8 @@ def load(automl_files, seq_type, option, study_example):
                 with st.spinner('Loading...'):
                     
                     if option == "Example":
-                        st.success("Test set loaded from study example successfully.")
                         files, _ = utils.processing.load_study(study_example, False)
+                        st.success("Test set loaded from study example successfully.")
                         features = utils.feature_extraction(files, st.session_state['data'][4], seq_type, False)
 
                         nameseqs = features.pop("nameseq")
@@ -426,31 +427,43 @@ def load(automl_files, seq_type, option, study_example):
                     manual_model_selection(model_selection, True)
 
         with tab2:
-            with st.form("automl"):
-                evaluation_automl = st.selectbox("Select an evaluation method:", ['10-fold cross-validation', '10-fold cross-validation and test set'], key='automl')
 
-                submitted = st.form_submit_button("Run AutoML")
+            evaluation_automl = st.selectbox("Select an evaluation method:", ['10-fold cross-validation', '10-fold cross-validation and test set'], key='automl')
+            
+            if option == "Manual" and evaluation_automl == '10-fold cross-validation and test set':
+                uploaded_files = st.file_uploader("Submit test set files:", accept_multiple_files=True)
 
-            if submitted:
+            submitted = st.button("Run AutoML")
+
+            if submitted:    
                 if evaluation_automl == '10-fold cross-validation': # only training
                     automl(automl_files, None, seq_type)
                 else:
                     if option == "Example":
-                        st.success("Test set loaded from study example successfully.")
                         files, _ = utils.processing.load_study(study_example, False)
-                        automl(files, files, seq_type)
+                        st.success("Test set loaded from study example successfully.")
+                        automl(automl_files, files, seq_type)
                     else:
-                        uploaded_files = st.file_uploader("Submit test set files:", accept_multiple_files=True)
-                        for file in uploaded_files:
-                            save_path = os.path.join(dir_path, file.name)
-                            with open(save_path, mode='wb') as f:
-                                f.write(file.getvalue())
+                        if uploaded_files:
+                            home_dir = os.path.expanduser('~')
 
-                        dir_path += '/'
+                            dir_path = os.path.join(home_dir, '.biotukey/test')
 
-                        files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
-                        
-                        print(files)
+                            files = glob.glob(dir_path + "/*")
+                            for f in files:
+                                os.remove(f)
+
+                            for file in uploaded_files:
+
+                                save_path = os.path.join(dir_path, file.name)
+                                with open(save_path, mode='wb') as f:
+                                    f.write(file.getvalue())
+
+                            dir_path += '/'
+
+                            files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
+                            
+                            automl(automl_files, files, seq_type)
 
 
 

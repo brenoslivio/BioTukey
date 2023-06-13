@@ -51,6 +51,22 @@ def runUI():
         st.title("BioTukey")
         st.markdown('''##### <span style="color:gray">Comprehensive toolkit for interactive data analysis, engineering, and classification of biological sequences.</span>
                     ''', unsafe_allow_html=True)
+        st.markdown("""BioTukey was developed using Python programming, with the Streamlit framework as the foundation for its GUI. Streamlit is a web application framework that simplifies creating interactive data-driven applications.
+                    In this context, BioTukey leverages the capabilities of Streamlit to function as a web application, enabling users to interact with the application through its GUI. The application is designed as a responsive 
+                    single-page application (SPA) to provide users with a user experience akin to a desktop application. It is organized into three main modules/pages: Overview, Feature Engineering, and Classification. 
+                    Each module offers distinct functionalities to support analyzing and exploring biological sequences.""")
+
+        st.markdown("""**Overview** module provides comprehensive data visualization and summary statistics. It presents users with diverse statistics on the provided sequences, including sequence alignment visualization, k-mer distribution, 
+                    and structure visualization for DNA/RNA and protein sequences. This module aims to provide users with a holistic understanding of the characteristics and properties of the input sequences.""")
+        
+        st.markdown("""**Feature Engineering** module empowers users to extract different types of descriptors from the sequences, generating feature vectors that can be concatenated. These feature vectors serve as input for visualizations 
+                    such as distribution plots, dimensionality reduction plots using techniques like PCA, t-SNE, or UMAP, correlation heatmaps, and feature importance bar charts. By allowing users to manipulate and explore the extracted 
+                    features, this module facilitates a deeper understanding of the data and enables informed decision-making in subsequent analysis steps.""")
+
+        st.markdown("""**Classification** module allows users to perform classification tasks on the provided sequences. Users can select between two popular machine learning models, Random Forest, and XGBoost, as the algorithms for classification. 
+                    They can further choose to apply 10-fold cross-validation, either with or without a separate test set. Additionally, users have the option to engage with the model manually by creating a custom pipeline. This includes 
+                    selecting hyperparameters, filtering for the most important features, and applying dimensionality reduction techniques. The module also provides performance scores of the model, such as accuracy, precision, recall, and F1-score, along with a confusion matrix to evaluate the model's predictive capabilities.""")
+        
     elif page == "Overview" and not (uploaded_files or study_example):
         st.warning("Select files or study example for Overview.")
     elif page == "Feature Engineering" and not (uploaded_files or study_example):
