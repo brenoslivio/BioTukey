@@ -147,6 +147,8 @@ def feature_extraction(fasta_files, descriptors, seq_type, train):
         dataframes = dataframes.loc[:, ~dataframes.columns.duplicated()]
         dataframes = dataframes[~dataframes.nameseq.str.contains("nameseq")]
 
-    features = dataframes.reset_index(drop=True)
+        features = dataframes.reset_index(drop=True)
 
-    return features
+        return features
+    
+    return

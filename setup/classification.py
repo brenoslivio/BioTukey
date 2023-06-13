@@ -401,13 +401,17 @@ def load(automl_files, seq_type, option, study_example):
                     
                     if option == "Example":
                         files, _ = utils.processing.load_study(study_example, False)
-                        st.success("Test set loaded from study example successfully.")
+                        
                         features = utils.feature_extraction(files, st.session_state['data'][4], seq_type, False)
 
-                        nameseqs = features.pop("nameseq")
-                        labels = features.pop("label")
+                        if features is not None:
+                            st.success("Test set loaded from study example successfully.")
+                            nameseqs = features.pop("nameseq")
+                            labels = features.pop("label")
 
-                        st.session_state['test'] = [features.values.astype(float), labels, nameseqs]
+                            st.session_state['test'] = [features.values.astype(float), labels, nameseqs]
+                        else:
+                            st.warning("Select features in Feature Engineering")
                     else:
                         with st.form("test_set"):
                             uploaded_files = st.file_uploader("Submit test set files:", accept_multiple_files=True)
@@ -418,11 +422,13 @@ def load(automl_files, seq_type, option, study_example):
                             files, _ = utils.processing.process_files(uploaded_files, seq_type, False)
                             features = utils.feature_extraction(files, st.session_state['data'][4], seq_type, False)
 
-                            features.pop("nameseq")
-                            labels = features.pop("label")
+                            if features is not None:
+                                features.pop("nameseq")
+                                labels = features.pop("label")
 
-                            st.session_state['test'] = [features.values.astype(float), labels]
-
+                                st.session_state['test'] = [features.values.astype(float), labels]
+                            else:
+                                st.warning("Select features in Feature Engineering")
                 if 'test' in st.session_state:
                     manual_model_selection(model_selection, True)
 
@@ -464,6 +470,3 @@ def load(automl_files, seq_type, option, study_example):
                             files = {os.path.splitext(f)[0] : dir_path + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))}
                             
                             automl(automl_files, files, seq_type)
-
-
-
